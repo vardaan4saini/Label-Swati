@@ -12,11 +12,7 @@ import {
   Instagram, Smartphone, Bell, Eye, Info, ChevronLeft, ChevronRight 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-interface CustomerHomeProps {
-  onNavigateToAdmin: () => void;
-}
-
-export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin }) => {
+export const CustomerHome: React.FC = () => {
   const {
     products,
     orders,
@@ -55,11 +51,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
   const [regContact, setRegContact] = useState('');
   const [regAddress, setRegAddress] = useState('');
 
-  // Admin Login States
-  const [showAdminLoginModal, setShowAdminLoginModal] = useState<boolean>(false);
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminPhone, setAdminPhone] = useState('+91 836 827 3725');
+
 
   // checkout states
   const [showCheckout, setShowCheckout] = useState(false);
@@ -134,21 +126,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
     });
   };
 
-  const handleAdminLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (adminEmail === 'labelswati@gmail.com' && adminPassword === 'Vaibhav@Mebula' && adminPhone === '+91 836 827 3725') {
-      setShowAdminLoginModal(false);
-      setToastAlert({
-        title: '🔐 Admin Authorization Approved',
-        message: 'Credentials verified. Launching master dashboard system...'
-      });
-      setTimeout(() => {
-        onNavigateToAdmin();
-      }, 1000);
-    } else {
-      alert("Invalid Admin Credentials.");
-    }
-  };
+
 
   // Switch lookbook carousel target
   const activeLookbookObj = lookbooks.find(l => l.id === activeLookbookId);
@@ -1273,12 +1251,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
                   >
                     Create Member Account Now
                   </button>
-                  <button 
-                    onClick={() => setShowAdminLoginModal(true)} 
-                    className="px-5 py-2.5 bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-300 text-xs font-semibold rounded uppercase tracking-wider"
-                  >
-                    Admin Portal Login
-                  </button>
                 </div>
               </div>
             )}
@@ -1532,76 +1504,7 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
         )}
       </AnimatePresence>
 
-      {/* POP-UP MODAL 2.5: ADMIN LOGIN PROFILE */}
-      <AnimatePresence>
-        {showAdminLoginModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white rounded-lg max-w-sm w-full relative p-6 font-sans shadow-xl border border-stone-100"
-            >
-              <button 
-                onClick={() => setShowAdminLoginModal(false)}
-                className="absolute top-3 right-3 text-stone-400 hover:text-black font-semibold text-sm p-1 hover:bg-stone-50 rounded"
-              >
-                ✕
-              </button>
 
-              <div className="text-center mb-6">
-                <span className="text-[10px] font-mono tracking-wider text-[#4C1D95] bg-purple-50 px-2.5 py-1 rounded uppercase font-bold">ADMIN PORTAL</span>
-                <h3 className="text-sm font-bold text-stone-900 mt-2 font-serif uppercase tracking-widest">Master Node Authorization</h3>
-              </div>
-
-              <form onSubmit={handleAdminLogin} className="space-y-4">
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-semibold text-stone-700">Email ID</label>
-                  <input 
-                    type="email"
-                    required
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    className="w-full text-xs p-2 border border-stone-250 rounded focus:border-black"
-                    placeholder="labelswati@gmail.com"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-semibold text-stone-700">Password</label>
-                  <input 
-                    type="password"
-                    required
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    className="w-full text-xs p-2 border border-stone-250 rounded focus:border-black"
-                    placeholder="••••••••"
-                  />
-                </div>
-                
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-semibold text-stone-700">Admin Contact Number</label>
-                  <input 
-                    type="tel"
-                    required
-                    value={adminPhone}
-                    onChange={(e) => setAdminPhone(e.target.value)}
-                    className="w-full text-xs p-2 border border-stone-250 rounded focus:border-black"
-                    placeholder="+91 836 827 3725"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-2.5 bg-black hover:opacity-95 text-white text-xs uppercase tracking-widest font-semibold rounded transition-opacity mt-3 shadow-md"
-                >
-                  Launch Admin Node →
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* POP-UP MODAL 3: SHARE CART WITH OTHER PLATFORMS (Community Building) */}
       <AnimatePresence>
