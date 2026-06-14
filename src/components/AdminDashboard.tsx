@@ -283,41 +283,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
               <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" /> BACK TO STORE
             </button>
             <div className="h-6 w-px bg-white/25 hidden md:block" />
-            <svg width="28" height="34" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0 opacity-95">
-              {/* Outer Head/Crown curve precisely matching image */}
-              <path 
-                d="M 48,22 C 48,22 45,14 58,14 C 69,14 74,24 74,35 C 74,43 68,49 61,49" 
-                stroke="#FFFFFF" 
-                strokeWidth="4" 
-                strokeLinecap="round" 
-                fill="none" 
-              />
-              {/* Almond Eye of Ganesha */}
-              <path 
-                d="M 53,29 C 55,27 57,29 57,30 C 57,32 54,33 53,33 C 51,33 50,31 53,29 Z" 
-                fill="#FFFFFF" 
-              />
-              {/* Three detailed wrinkles/trunk lines on the right cheek */}
-              <path d="M 64,36 C 66,37 68,37 69,38" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M 64,40 C 66,41 68,41 69,42" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M 63,44 C 65,45 67,45 68,46" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" />
-              {/* Main swooping Ganesha back outer S curve */}
-              <path 
-                d="M 46,26 C 36,30 34,43 40,54 C 45,62 54,62 58,54 C 62,45 54,38 47,43 C 41,47 41,58 47,64 C 54,70 65,71 65,80 C 65,89 55,93 46,93" 
-                stroke="#FFFFFF" 
-                strokeWidth="4.5" 
-                strokeLinecap="round" 
-                fill="none" 
-              />
-              {/* Ganesha front inner trunk loop spiral curve */}
-              <path 
-                d="M 52,47 C 49,55 45,64 52,71 C 59,79 71,79 71,67 C 71,56 59,53 52,61 C 47,67 48,76 53,82 C 59,88 71,88 71,77" 
-                stroke="#FFFFFF" 
-                strokeWidth="3.5" 
-                strokeLinecap="round" 
-                fill="none" 
-              />
-            </svg>
+              <img src="/logo.jpg" alt="Label Swati Logo" className="h-8 md:h-10 w-auto shrink-0 object-contain rounded-md opacity-95" />
             <div>
               <span className="text-[10px] tracking-widest text-[#FED7AA] font-mono uppercase font-bold block">Internal Warehousing Engine</span>
               <h1 className="text-sm font-bold tracking-tight uppercase font-mono">Label Swati Custom Admin Node</h1>
@@ -656,14 +622,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                                 )}
                               </div>
                             </div>
-                            <input 
-                              type="text" 
-                              required
-                              value={imgEntry.get}
-                              onChange={(e) => imgEntry.set(e.target.value)}
-                              className="w-full text-[10px] p-1.5 bg-white border border-stone-300 rounded font-mono focus:ring-1 focus:ring-stone-500 truncate"
-                              placeholder="Paste image link URL"
-                            />
+                            <div className="flex flex-col gap-1">
+                              <input 
+                                type="text" 
+                                required
+                                value={imgEntry.get}
+                                onChange={(e) => imgEntry.set(e.target.value)}
+                                className="w-full text-[10px] p-1.5 bg-white border border-stone-300 rounded font-mono focus:ring-1 focus:ring-stone-500 truncate"
+                                placeholder="Paste image link URL"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => document.getElementById(`gallery-file-upload-${idx}`)?.click()}
+                                className="w-full text-[9px] text-stone-600 bg-stone-200 hover:bg-stone-300 px-1 py-1 rounded font-semibold cursor-pointer"
+                              >
+                                Upload Image
+                              </button>
+                              <input 
+                                id={`gallery-file-upload-${idx}`}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                      if (typeof reader.result === 'string') {
+                                        imgEntry.set(reader.result);
+                                      }
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>

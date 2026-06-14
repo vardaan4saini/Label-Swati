@@ -55,6 +55,12 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
   const [regContact, setRegContact] = useState('');
   const [regAddress, setRegAddress] = useState('');
 
+  // Admin Login States
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState<boolean>(false);
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminPhone, setAdminPhone] = useState('+91 836 827 3725');
+
   // checkout states
   const [showCheckout, setShowCheckout] = useState(false);
   const [chkName, setChkName] = useState('');
@@ -109,11 +115,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
     return acc + (prod ? prod.price * item.quantity : 0);
   }, 0);
 
-  const isAdminNumber = (num: string): boolean => {
-    const clean = num.replace(/[^0-9]/g, '');
-    return clean.endsWith('9876543210') || clean.endsWith('9999999999');
-  };
-
   // Handle register submission
   const handleRegisterUser = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,30 +122,31 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
     registerUser(regName, regContact, regAddress);
     setShowRegModal(false);
 
-    if (isAdminNumber(regContact)) {
-      triggerSaleNotification(
-        'Admin Access Authenticated',
-        `Master credentials resolved for [${regContact}]. Entering Swati Admin Dashboard Node...`,
-        'general'
-      );
+    triggerSaleNotification(
+      'Account Created Successfully!',
+      `Welcome to Label Swati. You have been assigned an official customer account profile. Enjoy exploring our collections!`,
+      'general'
+    );
+    // show success alert
+    setToastAlert({
+      title: '🎁 Welcome Member Bonus!',
+      message: 'Your custom account is active. Enjoy custom silhouettes & premium seasonal wear.'
+    });
+  };
+
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (adminEmail === 'labelswati@gmail.com' && adminPassword === 'Vaibhav@Mebula' && adminPhone === '+91 836 827 3725') {
+      setShowAdminLoginModal(false);
       setToastAlert({
         title: '🔐 Admin Authorization Approved',
-        message: 'Admin mobile contact verified. Launching master dashboard system...'
+        message: 'Credentials verified. Launching master dashboard system...'
       });
       setTimeout(() => {
         onNavigateToAdmin();
-      }, 1500);
+      }, 1000);
     } else {
-      triggerSaleNotification(
-        'Account Created Successfully!',
-        `Welcome to Label Swati. You have been assigned an official customer account profile. Enjoy exploring our collections!`,
-        'general'
-      );
-      // show success alert
-      setToastAlert({
-        title: '🎁 Welcome Member Bonus!',
-        message: 'Your custom account is active. Enjoy custom silhouettes & premium seasonal wear.'
-      });
+      alert("Invalid Admin Credentials.");
     }
   };
 
@@ -281,50 +283,9 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
               }} 
               className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer text-left focus:outline-hidden"
             >
-              <svg width="36" height="44" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
-                <defs>
-                  <linearGradient id="ganeshaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#C2410C" />
-                    <stop offset="50%" stopColor="#9333EA" />
-                    <stop offset="100%" stopColor="#4C1D95" />
-                  </linearGradient>
-                </defs>
-                {/* Outer Head/Crown curve precisely matching image */}
-                <path 
-                  d="M 48,22 C 48,22 45,14 58,14 C 69,14 74,24 74,35 C 74,43 68,49 61,49" 
-                  stroke="url(#ganeshaGrad)" 
-                  strokeWidth="4" 
-                  strokeLinecap="round" 
-                  fill="none" 
-                />
-                {/* Almond Eye of Ganesha */}
-                <path 
-                  d="M 53,29 C 55,27 57,29 57,30 C 57,32 54,33 53,33 C 51,33 50,31 53,29 Z" 
-                  fill="url(#ganeshaGrad)" 
-                />
-                {/* Three detailed horizontal wrinkles/trunk lines on the right cheek */}
-                <path d="M 64,36 C 66,37 68,37 69,38" stroke="url(#ganeshaGrad)" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M 64,40 C 66,41 68,41 69,42" stroke="url(#ganeshaGrad)" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M 63,44 C 65,45 67,45 68,46" stroke="url(#ganeshaGrad)" strokeWidth="2.5" strokeLinecap="round" />
-                {/* Main swooping Ganesha back outer S curve */}
-                <path 
-                  d="M 46,26 C 36,30 34,43 40,54 C 45,62 54,62 58,54 C 62,45 54,38 47,43 C 41,47 41,58 47,64 C 54,70 65,71 65,80 C 65,89 55,93 46,93" 
-                  stroke="url(#ganeshaGrad)" 
-                  strokeWidth="4.5" 
-                  strokeLinecap="round" 
-                  fill="none" 
-                />
-                {/* Ganesha front inner trunk loop spiral curve */}
-                <path 
-                  d="M 52,47 C 49,55 45,64 52,71 C 59,79 71,79 71,67 C 71,56 59,53 52,61 C 47,67 48,76 53,82 C 59,88 71,88 71,77" 
-                  stroke="url(#ganeshaGrad)" 
-                  strokeWidth="3.5" 
-                  strokeLinecap="round" 
-                  fill="none" 
-                />
-              </svg>
+              <img src="/logo.jpg" alt="Label Swati Logo" className="h-10 md:h-12 w-auto shrink-0 object-contain rounded-md" />
               <div className="flex flex-col">
-                <span className="text-base md:text-lg font-sans font-semibold tracking-[0.3em] text-stone-900 leading-none">S W A T I</span>
+                <span className="text-base md:text-lg font-sans font-semibold tracking-[0.2em] text-stone-900 leading-none">L A B E L &nbsp;S W A T I</span>
                 <span className="text-[7px] md:text-[8px] font-serif tracking-[0.16em] text-amber-800/80 uppercase mt-1">DESK TO DREAM</span>
               </div>
             </button>
@@ -1165,21 +1126,6 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
                       >
                         Sign Out / Switch Account
                       </button>
-
-                      {isAdminNumber(currentUser.contactNumber) && (
-                        <div className="p-3 bg-gradient-to-br from-amber-50 to-purple-50 rounded-md border border-amber-200 text-left mt-2 space-y-2">
-                          <p className="text-[9px] font-bold tracking-wider text-amber-700 font-mono uppercase">🔐 Master Admin Identified</p>
-                          <p className="text-[10px] text-stone-600 leading-normal">
-                            Registered on master system. Press below to launch full warehouse & order logs.
-                          </p>
-                          <button 
-                            onClick={onNavigateToAdmin}
-                            className="w-full py-1.5 bg-gradient-to-r from-[#C2410C] via-[#9333EA] to-[#4C1D95] text-white hover:opacity-90 font-mono text-[9px] font-bold uppercase tracking-wider rounded transition-opacity shadow-xs"
-                          >
-                            Launch Admin Panel Node
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -1320,12 +1266,20 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
               <div className="bg-white p-12 text-center rounded-lg border border-stone-250 font-sans">
                 <User className="w-10 h-10 text-stone-300 mx-auto mb-3 animate-pulse" />
                 <p className="text-stone-500 text-sm">Please register your member credentials to log into your exclusive wallet profile.</p>
-                <button 
-                  onClick={() => setShowRegModal(true)} 
-                  className="mt-4 px-5 py-2.5 bg-black text-white text-xs font-semibold rounded uppercase tracking-wider"
-                >
-                  Create Member Account Now
-                </button>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center mt-4">
+                  <button 
+                    onClick={() => setShowRegModal(true)} 
+                    className="px-5 py-2.5 bg-black text-white text-xs font-semibold rounded uppercase tracking-wider"
+                  >
+                    Create Member Account Now
+                  </button>
+                  <button 
+                    onClick={() => setShowAdminLoginModal(true)} 
+                    className="px-5 py-2.5 bg-stone-100 text-stone-700 hover:bg-stone-200 border border-stone-300 text-xs font-semibold rounded uppercase tracking-wider"
+                  >
+                    Admin Portal Login
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1571,6 +1525,77 @@ export const CustomerHome: React.FC<CustomerHomeProps> = ({ onNavigateToAdmin })
                   className="w-full py-2.5 bg-gradient-to-r from-[#C2410C] via-[#9333EA] to-[#4C1D95] hover:opacity-95 text-white text-xs uppercase tracking-widest font-semibold rounded transition-opacity mt-3 shadow-md"
                 >
                   Create Member Account →
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* POP-UP MODAL 2.5: ADMIN LOGIN PROFILE */}
+      <AnimatePresence>
+        {showAdminLoginModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white rounded-lg max-w-sm w-full relative p-6 font-sans shadow-xl border border-stone-100"
+            >
+              <button 
+                onClick={() => setShowAdminLoginModal(false)}
+                className="absolute top-3 right-3 text-stone-400 hover:text-black font-semibold text-sm p-1 hover:bg-stone-50 rounded"
+              >
+                ✕
+              </button>
+
+              <div className="text-center mb-6">
+                <span className="text-[10px] font-mono tracking-wider text-[#4C1D95] bg-purple-50 px-2.5 py-1 rounded uppercase font-bold">ADMIN PORTAL</span>
+                <h3 className="text-sm font-bold text-stone-900 mt-2 font-serif uppercase tracking-widest">Master Node Authorization</h3>
+              </div>
+
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-stone-700">Email ID</label>
+                  <input 
+                    type="email"
+                    required
+                    value={adminEmail}
+                    onChange={(e) => setAdminEmail(e.target.value)}
+                    className="w-full text-xs p-2 border border-stone-250 rounded focus:border-black"
+                    placeholder="labelswati@gmail.com"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-stone-700">Password</label>
+                  <input 
+                    type="password"
+                    required
+                    value={adminPassword}
+                    onChange={(e) => setAdminPassword(e.target.value)}
+                    className="w-full text-xs p-2 border border-stone-250 rounded focus:border-black"
+                    placeholder="••••••••"
+                  />
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-stone-700">Admin Contact Number</label>
+                  <input 
+                    type="tel"
+                    required
+                    value={adminPhone}
+                    onChange={(e) => setAdminPhone(e.target.value)}
+                    className="w-full text-xs p-2 border border-stone-250 rounded focus:border-black"
+                    placeholder="+91 836 827 3725"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 bg-black hover:opacity-95 text-white text-xs uppercase tracking-widest font-semibold rounded transition-opacity mt-3 shadow-md"
+                >
+                  Launch Admin Node →
                 </button>
               </form>
             </motion.div>

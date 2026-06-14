@@ -598,23 +598,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (res.ok) {
           const serverData = await res.json();
           if (serverData && serverData.products && serverData.products.length > 0) {
-            if (JSON.stringify(serverData.products) !== JSON.stringify(products) && products.length > 0) {
+            if (JSON.stringify(serverData.products) !== JSON.stringify(products)) {
               setProducts(serverData.products);
               ls.setItem('sw_products', JSON.stringify(serverData.products));
             }
-            if (JSON.stringify(serverData.orders) !== JSON.stringify(orders) && orders.length > 0) {
+            if (JSON.stringify(serverData.orders) !== JSON.stringify(orders)) {
               setOrders(serverData.orders);
               ls.setItem('sw_orders', JSON.stringify(serverData.orders));
             }
-            if (JSON.stringify(serverData.coupons) !== JSON.stringify(coupons) && coupons.length > 0) {
+            if (JSON.stringify(serverData.coupons) !== JSON.stringify(coupons)) {
               setCoupons(serverData.coupons);
               ls.setItem('sw_coupons', JSON.stringify(serverData.coupons));
             }
-            if (JSON.stringify(serverData.feedbacks) !== JSON.stringify(feedbacks) && feedbacks.length > 0) {
+            if (JSON.stringify(serverData.feedbacks) !== JSON.stringify(feedbacks)) {
               setFeedbacks(serverData.feedbacks);
               ls.setItem('sw_feedbacks', JSON.stringify(serverData.feedbacks));
             }
-            if (JSON.stringify(serverData.notifications) !== JSON.stringify(notifications) && notifications.length > 0) {
+            if (JSON.stringify(serverData.notifications) !== JSON.stringify(notifications)) {
               setNotifications(serverData.notifications);
               ls.setItem('sw_notifs', JSON.stringify(serverData.notifications));
             }
