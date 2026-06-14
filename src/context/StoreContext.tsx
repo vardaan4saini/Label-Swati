@@ -3,7 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  onSnapshot,
+  serverTimestamp
+} from 'firebase/firestore';
+import { db } from '../firebase';
 import { Product, Order, UserAccount, Coupon, SeasonalLookbook, UserFeedback, OrderItem } from '../types';
 
 interface StoreContextType {
@@ -17,7 +25,8 @@ interface StoreContextType {
   wishlist: string[]; // Product IDs
   cart: { productId: string; size: string; quantity: number }[];
   notifications: { id: string; title: string; message: string; date: string; type: 'sale' | 'arrival' | 'general' }[];
-  
+  isLoading: boolean;
+
   // App operations
   addProduct: (product: Omit<Product, 'id' | 'salesCount' | 'creationDate'>) => void;
   updateProduct: (id: string, updated: Partial<Product>) => void;
@@ -218,7 +227,7 @@ const DEFAULT_USERS: UserAccount[] = [
     contactNumber: '+919876543210',
     address: '402, Signature Residency, GK II, New Delhi, India - 110048',
     referralCode: 'AANYA02',
-    slCoins: 120, // Preloaded LS coins
+    slCoins: 120,
     referralsCount: 4
   },
   {
@@ -305,7 +314,7 @@ const DEFAULT_ORDERS: Order[] = [
     ],
     subtotal: 8500,
     discountCoinsApplied: 10,
-    discountCouponApplied: 850, // 10% of 8500
+    discountCouponApplied: 850,
     couponCodeUsed: 'SWATI10',
     totalPaid: 7640,
     paymentMethod: 'Credit/Debit Card',
@@ -359,20 +368,20 @@ const DEFAULT_FEEDBACKS: UserFeedback[] = [
   }
 ];
 
-const DEFAULT_NOTIFICATIONS = [
+const DEFAULT_NOTIFICATIONS: StoreContextType['notifications'] = [
   {
     id: 'notif-1',
     title: 'Autumn/Winter 26 Collection Teaser',
     message: 'Unveiling the Tactile Isolation AW line starting next Friday. Explore structured knit coats and suede layers today in lookbook.',
     date: '2026-06-10T09:00:00Z',
-    type: 'arrival' as const
+    type: 'arrival'
   },
   {
     id: 'notif-2',
     title: 'Mid-Year Architectural Sale',
     message: 'Receive flat 15% off utilizing LAUNCH15. Excludes raw trousers but includes silk items.',
     date: '2026-06-09T08:30:00Z',
-    type: 'sale' as const
+    type: 'sale'
   }
 ];
 
@@ -391,12 +400,12 @@ const ls = {
       localStorage.setItem(key, value);
     } catch (error: any) {
       console.warn(`[LocalStorage] Failed to set key "${key}":`, error);
-      const isQuotaError = 
-        error?.name === 'QuotaExceededError' || 
-        error?.name === 'NS_ERROR_DOM_QUOTA_REACHED' || 
-        error?.code === 22 || 
-        error?.code === 1014 || 
-        error?.message?.toLowerCase().includes('quota') || 
+      const isQuotaError =
+        error?.name === 'QuotaExceededError' ||
+        error?.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+        error?.code === 22 ||
+        error?.code === 1014 ||
+        error?.message?.toLowerCase().includes('quota') ||
         error?.message?.toLowerCase().includes('exceeded');
 
       if (isQuotaError) {
@@ -404,31 +413,27 @@ const ls = {
           try {
             const parsed = JSON.parse(value);
             if (Array.isArray(parsed)) {
-              // Strip massive base64 images and replace them with standard mock placeholders to fit within local storage quota
               const pruned = parsed.map((p: any) => ({
                 ...p,
-                image: p.image?.startsWith('data:image') 
-                  ? 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80' 
+                image: p.image?.startsWith('data:image')
+                  ? 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80'
                   : p.image,
-                images: p.images 
-                  ? p.images.map((img: string) => img?.startsWith('data:image') 
-                    ? 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80' 
-                    : img) 
+                images: p.images
+                  ? p.images.map((img: string) => img?.startsWith('data:image')
+                    ? 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80'
+                    : img)
                   : []
               }));
               localStorage.setItem(key, JSON.stringify(pruned));
-              console.log('[LocalStorage] Successfully saved pruned products database within quota constraints.');
             }
           } catch (innerErr) {
             console.error('[LocalStorage] Failed to parse and prune products state:', innerErr);
           }
         } else if (key === 'sw_orders' || key === 'sw_feedbacks' || key === 'sw_notifs') {
-          // Slice older entries to conserve space
           try {
             const parsed = JSON.parse(value);
             if (Array.isArray(parsed) && parsed.length > 20) {
               localStorage.setItem(key, JSON.stringify(parsed.slice(0, 20)));
-              console.log(`[LocalStorage] Saved top 20 items of key "${key}" to preserve quota space.`);
             }
           } catch (innerErr) {}
         }
@@ -444,6 +449,50 @@ const ls = {
   }
 };
 
+// ─── Firestore helpers ──────────────────────────────────────────────────────
+const STORE_COLLECTION = 'store';
+
+const fsGet = async <T,>(docId: string): Promise<T[] | null> => {
+  try {
+    const snap = await getDoc(doc(db, STORE_COLLECTION, docId));
+    if (snap.exists()) {
+      const data = snap.data();
+      return (data?.items as T[]) ?? null;
+    }
+    return null;
+  } catch (err) {
+    console.error(`[Firestore] getDoc "${docId}" failed:`, err);
+    return null;
+  }
+};
+
+// Firestore does not allow `undefined` values anywhere in a document.
+// This sanitizer recursively replaces undefined with null so writes never fail.
+const sanitizeForFirestore = (obj: any): any => {
+  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
+  if (obj !== null && typeof obj === 'object') {
+    const clean: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      clean[key] = val === undefined ? null : sanitizeForFirestore(val);
+    }
+    return clean;
+  }
+  return obj;
+};
+
+const fsSet = async (docId: string, items: any[]): Promise<void> => {
+  try {
+    const safeItems = sanitizeForFirestore(items);
+    await setDoc(doc(db, STORE_COLLECTION, docId), { items: safeItems, updatedAt: serverTimestamp() });
+    console.log(`[Firestore] ✅ setDoc "${docId}" success (${safeItems.length} items)`);
+  } catch (err) {
+    console.error(`[Firestore] ❌ setDoc "${docId}" failed:`, err);
+  }
+};
+
+// ───────────────────────────────────────────────────────────────────────────
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -455,204 +504,196 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wishlist, setWishlist] = useState<string[]>([]);
   const [cart, setCart] = useState<{ productId: string; size: string; quantity: number }[]>([]);
   const [notifications, setNotifications] = useState<StoreContextType['notifications']>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load state from localStorage on mount and sync with Server
+  // Track whether we've seeded Firestore so we don't overwrite on re-render
+  const seededRef = useRef(false);
+
+  // ── 1. Bootstrap: load localStorage cache, then fetch Firestore on mount ──
   useEffect(() => {
-    try {
-      const storedProducts = ls.getItem('sw_products');
-      const storedOrders = ls.getItem('sw_orders');
-      const storedUsers = ls.getItem('sw_users');
-      const storedCurUser = ls.getItem('sw_current_user');
-      const storedCoupons = ls.getItem('sw_coupons');
-      const storedLookbooks = ls.getItem('sw_lookbooks');
-      const storedFeedbacks = ls.getItem('sw_feedbacks');
-      const storedWishlist = ls.getItem('sw_wishlist');
-      const storedCart = ls.getItem('sw_cart');
-      const storedNotifs = ls.getItem('sw_notifs');
-
-      let lProducts = DEFAULT_PRODUCTS;
-      let lOrders = DEFAULT_ORDERS;
-      let lCoupons = DEFAULT_COUPONS;
-      let lLookbooks = DEFAULT_LOOKBOOKS;
-      let lFeedbacks = DEFAULT_FEEDBACKS;
-      let lNotifs = DEFAULT_NOTIFICATIONS;
-
-      if (storedProducts) {
-        lProducts = JSON.parse(storedProducts);
-        setProducts(lProducts);
-      } else {
-        setProducts(DEFAULT_PRODUCTS);
-        ls.setItem('sw_products', JSON.stringify(DEFAULT_PRODUCTS));
-      }
-
-      if (storedOrders) {
-        lOrders = JSON.parse(storedOrders);
-        setOrders(lOrders);
-      } else {
-        setOrders(DEFAULT_ORDERS);
-        ls.setItem('sw_orders', JSON.stringify(DEFAULT_ORDERS));
-      }
-
-      if (storedUsers) {
-        const parsedUsers = JSON.parse(storedUsers);
-        setUsers(parsedUsers);
-        if (storedCurUser) {
-          const cur = JSON.parse(storedCurUser);
-          const activeUser = parsedUsers.find((u: UserAccount) => u.id === cur.id);
-          setCurrentUser(activeUser || parsedUsers[0]);
-        } else {
-          setCurrentUser(parsedUsers[0]);
-          ls.setItem('sw_current_user', JSON.stringify(parsedUsers[0]));
-        }
-      } else {
-        setUsers(DEFAULT_USERS);
-        setCurrentUser(DEFAULT_USERS[0]);
-        ls.setItem('sw_users', JSON.stringify(DEFAULT_USERS));
-        ls.setItem('sw_current_user', JSON.stringify(DEFAULT_USERS[0]));
-      }
-
-      if (storedCoupons) {
-        lCoupons = JSON.parse(storedCoupons);
-        setCoupons(lCoupons);
-      } else {
-        setCoupons(DEFAULT_COUPONS);
-        ls.setItem('sw_coupons', JSON.stringify(DEFAULT_COUPONS));
-      }
-
-      if (storedLookbooks) {
-        lLookbooks = JSON.parse(storedLookbooks);
-        setLookbooks(lLookbooks);
-      } else {
-        setLookbooks(DEFAULT_LOOKBOOKS);
-        ls.setItem('sw_lookbooks', JSON.stringify(DEFAULT_LOOKBOOKS));
-      }
-
-      if (storedFeedbacks) {
-        lFeedbacks = JSON.parse(storedFeedbacks);
-        setFeedbacks(lFeedbacks);
-      } else {
-        setFeedbacks(DEFAULT_FEEDBACKS);
-        ls.setItem('sw_feedbacks', JSON.stringify(DEFAULT_FEEDBACKS));
-      }
-
-      if (storedWishlist) setWishlist(JSON.parse(storedWishlist));
-      if (storedCart) setCart(JSON.parse(storedCart));
-
-      if (storedNotifs) {
-        lNotifs = JSON.parse(storedNotifs);
-        setNotifications(lNotifs);
-      } else {
-        setNotifications(DEFAULT_NOTIFICATIONS);
-        ls.setItem('sw_notifs', JSON.stringify(DEFAULT_NOTIFICATIONS));
-      }
-
-      // Sync central store state immediately
-      const syncOnMount = async () => {
-        try {
-          const res = await fetch('/api/state');
-          if (res.ok) {
-            const serverData = await res.json();
-            if (serverData && serverData.products && serverData.products.length > 0) {
-              setProducts(serverData.products);
-              setOrders(serverData.orders || []);
-              setCoupons(serverData.coupons || []);
-              setFeedbacks(serverData.feedbacks || []);
-              setNotifications(serverData.notifications || []);
-              ls.setItem('sw_products', JSON.stringify(serverData.products));
-              ls.setItem('sw_orders', JSON.stringify(serverData.orders || []));
-              ls.setItem('sw_coupons', JSON.stringify(serverData.coupons || []));
-              ls.setItem('sw_feedbacks', JSON.stringify(serverData.feedbacks || []));
-              ls.setItem('sw_notifs', JSON.stringify(serverData.notifications || []));
-            } else {
-              // Server state is empty/newly booted, seed it with the current default collections
-              await fetch('/api/state', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  products: lProducts,
-                  orders: lOrders,
-                  coupons: lCoupons,
-                  feedbacks: lFeedbacks,
-                  notifications: lNotifs
-                })
-              });
-            }
-          }
-        } catch (err) {
-          console.error("Mount sync with central DB failed:", err);
-        }
-      };
-      
-      syncOnMount();
-
-    } catch (e) {
-      console.error('Error loading localStorage state for Label Swati', e);
-    }
-  }, []);
-
-  // Periodic polling for multi-device realtime synchronization
-  useEffect(() => {
-    const handlePoll = async () => {
+    const bootstrap = async () => {
+      // --- LocalStorage fast cache ---
       try {
-        const res = await fetch('/api/state');
-        if (res.ok) {
-          const serverData = await res.json();
-          if (serverData && serverData.products && serverData.products.length > 0) {
-            if (JSON.stringify(serverData.products) !== JSON.stringify(products)) {
-              setProducts(serverData.products);
-              ls.setItem('sw_products', JSON.stringify(serverData.products));
-            }
-            if (JSON.stringify(serverData.orders) !== JSON.stringify(orders)) {
-              setOrders(serverData.orders);
-              ls.setItem('sw_orders', JSON.stringify(serverData.orders));
-            }
-            if (JSON.stringify(serverData.coupons) !== JSON.stringify(coupons)) {
-              setCoupons(serverData.coupons);
-              ls.setItem('sw_coupons', JSON.stringify(serverData.coupons));
-            }
-            if (JSON.stringify(serverData.feedbacks) !== JSON.stringify(feedbacks)) {
-              setFeedbacks(serverData.feedbacks);
-              ls.setItem('sw_feedbacks', JSON.stringify(serverData.feedbacks));
-            }
-            if (JSON.stringify(serverData.notifications) !== JSON.stringify(notifications)) {
-              setNotifications(serverData.notifications);
-              ls.setItem('sw_notifs', JSON.stringify(serverData.notifications));
-            }
+        const storedUsers = ls.getItem('sw_users');
+        const storedCurUser = ls.getItem('sw_current_user');
+        const storedWishlist = ls.getItem('sw_wishlist');
+        const storedCart = ls.getItem('sw_cart');
+
+        if (storedUsers) {
+          const parsedUsers = JSON.parse(storedUsers);
+          setUsers(parsedUsers);
+          if (storedCurUser) {
+            const cur = JSON.parse(storedCurUser);
+            const activeUser = parsedUsers.find((u: UserAccount) => u.id === cur.id);
+            setCurrentUser(activeUser || parsedUsers[0]);
+          } else {
+            setCurrentUser(parsedUsers[0]);
+            ls.setItem('sw_current_user', JSON.stringify(parsedUsers[0]));
           }
+        } else {
+          setUsers(DEFAULT_USERS);
+          setCurrentUser(DEFAULT_USERS[0]);
+          ls.setItem('sw_users', JSON.stringify(DEFAULT_USERS));
+          ls.setItem('sw_current_user', JSON.stringify(DEFAULT_USERS[0]));
         }
+
+        if (storedWishlist) setWishlist(JSON.parse(storedWishlist));
+        if (storedCart) setCart(JSON.parse(storedCart));
       } catch (e) {
-        // Suppress errors during reload
+        console.error('[Bootstrap] localStorage load failed:', e);
       }
+
+      // Lookbooks are static; not synced to Firestore
+      setLookbooks(DEFAULT_LOOKBOOKS);
+
+      // --- Firestore initial fetch ---
+      try {
+        const [fsProducts, fsOrders, fsCoupons, fsFeedbacks, fsNotifs] = await Promise.all([
+          fsGet<Product>('products'),
+          fsGet<Order>('orders'),
+          fsGet<Coupon>('coupons'),
+          fsGet<UserFeedback>('feedbacks'),
+          fsGet<StoreContextType['notifications'][number]>('notifications'),
+        ]);
+
+        let seedNeeded = false;
+
+        if (fsProducts && fsProducts.length > 0) {
+          setProducts(fsProducts);
+          ls.setItem('sw_products', JSON.stringify(fsProducts));
+        } else {
+          setProducts(DEFAULT_PRODUCTS);
+          ls.setItem('sw_products', JSON.stringify(DEFAULT_PRODUCTS));
+          seedNeeded = true;
+        }
+
+        if (fsOrders && fsOrders.length > 0) {
+          setOrders(fsOrders);
+          ls.setItem('sw_orders', JSON.stringify(fsOrders));
+        } else {
+          setOrders(DEFAULT_ORDERS);
+          ls.setItem('sw_orders', JSON.stringify(DEFAULT_ORDERS));
+          seedNeeded = true;
+        }
+
+        if (fsCoupons && fsCoupons.length > 0) {
+          setCoupons(fsCoupons);
+          ls.setItem('sw_coupons', JSON.stringify(fsCoupons));
+        } else {
+          setCoupons(DEFAULT_COUPONS);
+          ls.setItem('sw_coupons', JSON.stringify(DEFAULT_COUPONS));
+          seedNeeded = true;
+        }
+
+        if (fsFeedbacks && fsFeedbacks.length > 0) {
+          setFeedbacks(fsFeedbacks);
+          ls.setItem('sw_feedbacks', JSON.stringify(fsFeedbacks));
+        } else {
+          setFeedbacks(DEFAULT_FEEDBACKS);
+          ls.setItem('sw_feedbacks', JSON.stringify(DEFAULT_FEEDBACKS));
+          seedNeeded = true;
+        }
+
+        if (fsNotifs && fsNotifs.length > 0) {
+          setNotifications(fsNotifs as StoreContextType['notifications']);
+          ls.setItem('sw_notifs', JSON.stringify(fsNotifs));
+        } else {
+          setNotifications(DEFAULT_NOTIFICATIONS);
+          ls.setItem('sw_notifs', JSON.stringify(DEFAULT_NOTIFICATIONS));
+          seedNeeded = true;
+        }
+
+        // Seed Firestore with defaults on first load
+        if (seedNeeded && !seededRef.current) {
+          seededRef.current = true;
+          await Promise.all([
+            fsSet('products', DEFAULT_PRODUCTS),
+            fsSet('orders', DEFAULT_ORDERS),
+            fsSet('coupons', DEFAULT_COUPONS),
+            fsSet('feedbacks', DEFAULT_FEEDBACKS),
+            fsSet('notifications', DEFAULT_NOTIFICATIONS),
+          ]);
+        }
+      } catch (err) {
+        console.error('[Bootstrap] Firestore initial fetch failed:', err);
+        // Fall back to localStorage cache or defaults
+        const cached = {
+          products: ls.getItem('sw_products'),
+          orders: ls.getItem('sw_orders'),
+          coupons: ls.getItem('sw_coupons'),
+          feedbacks: ls.getItem('sw_feedbacks'),
+          notifs: ls.getItem('sw_notifs'),
+        };
+        if (cached.products) setProducts(JSON.parse(cached.products)); else setProducts(DEFAULT_PRODUCTS);
+        if (cached.orders) setOrders(JSON.parse(cached.orders)); else setOrders(DEFAULT_ORDERS);
+        if (cached.coupons) setCoupons(JSON.parse(cached.coupons)); else setCoupons(DEFAULT_COUPONS);
+        if (cached.feedbacks) setFeedbacks(JSON.parse(cached.feedbacks)); else setFeedbacks(DEFAULT_FEEDBACKS);
+        if (cached.notifs) setNotifications(JSON.parse(cached.notifs)); else setNotifications(DEFAULT_NOTIFICATIONS);
+      }
+
+      setIsLoading(false);
     };
 
-    const timer = setInterval(handlePoll, 4000);
-    return () => clearInterval(timer);
-  }, [products, orders, coupons, feedbacks, notifications]);
+    bootstrap();
+  }, []);
 
-  // Push individual changes to Express database
-  const pushStateToServer = async (partialState: any) => {
-    try {
-      await fetch('/api/state', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(partialState)
-      });
-    } catch (err) {
-      console.error("Failed to sync partial state to server:", err);
-    }
-  };
+  // ── 2. Real-time Firestore listeners (onSnapshot) ──────────────────────
+  // Guard: skip updates that are still pending local writes (echoes of our own writes)
+  // or that come from the local offline cache only.
+  useEffect(() => {
+    const makeListener = <T,>(
+      docId: string,
+      setter: (items: T[]) => void,
+      cacheKey: string
+    ) => onSnapshot(
+      doc(db, STORE_COLLECTION, docId),
+      { includeMetadataChanges: true },
+      (snap) => {
+        // Skip cache-only reads and pending (unconfirmed) local writes
+        if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
+        if (snap.exists()) {
+          const items = snap.data()?.items as T[];
+          if (Array.isArray(items)) {
+            setter(items);
+            ls.setItem(cacheKey, JSON.stringify(items));
+            console.log(`[Firestore] 🔄 ${docId} synced (${items.length} items)`);
+          }
+        }
+      },
+      (err) => console.warn(`[Firestore] ${docId} listener error:`, err)
+    );
 
-  // Save utility wrappers
+    const unsubProducts = makeListener<Product>('products', setProducts, 'sw_products');
+    const unsubOrders = makeListener<Order>('orders', setOrders, 'sw_orders');
+    const unsubCoupons = makeListener<Coupon>('coupons', setCoupons, 'sw_coupons');
+    const unsubFeedbacks = makeListener<UserFeedback>('feedbacks', setFeedbacks, 'sw_feedbacks');
+    const unsubNotifs = makeListener<StoreContextType['notifications'][number]>(
+      'notifications',
+      (items) => setNotifications(items as StoreContextType['notifications']),
+      'sw_notifs'
+    );
+
+    return () => {
+      unsubProducts();
+      unsubOrders();
+      unsubCoupons();
+      unsubFeedbacks();
+      unsubNotifs();
+    };
+  }, []);
+
+
+  // ── Save utility wrappers (write to state + localStorage + Firestore) ──
   const saveProducts = (prods: Product[]) => {
     setProducts(prods);
     ls.setItem('sw_products', JSON.stringify(prods));
-    pushStateToServer({ products: prods });
+    fsSet('products', prods);
   };
 
   const saveOrders = (ords: Order[]) => {
     setOrders(ords);
     ls.setItem('sw_orders', JSON.stringify(ords));
-    pushStateToServer({ orders: ords });
+    fsSet('orders', ords);
   };
 
   const saveUsers = (us: UserAccount[]) => {
@@ -664,7 +705,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCurrentUser(user);
     if (user) {
       ls.setItem('sw_current_user', JSON.stringify(user));
-      // update user list too
       const updatedList = users.map(u => u.id === user.id ? user : u);
       saveUsers(updatedList);
     } else {
@@ -675,16 +715,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const saveCoupons = (cps: Coupon[]) => {
     setCoupons(cps);
     ls.setItem('sw_coupons', JSON.stringify(cps));
-    pushStateToServer({ coupons: cps });
+    fsSet('coupons', cps);
   };
 
   const saveFeedbacks = (fbs: UserFeedback[]) => {
     setFeedbacks(fbs);
     ls.setItem('sw_feedbacks', JSON.stringify(fbs));
-    pushStateToServer({ feedbacks: fbs });
+    fsSet('feedbacks', fbs);
   };
 
-  // State modification handlers
+  // ── State modification handlers ────────────────────────────────────────
   const addProduct = (newProd: Omit<Product, 'id' | 'salesCount' | 'creationDate'>) => {
     const fresh: Product = {
       ...newProd,
@@ -709,14 +749,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const registerUser = (name: string, contactNumber: string, address: string) => {
     const codePrefix = name.substring(0, 5).toUpperCase().replace(/\s/g, '');
     const referralCode = `${codePrefix}${Math.floor(10 + Math.random() * 90)}`;
-    
+
     const freshUser: UserAccount = {
       id: `usr-${Date.now()}`,
       name,
       contactNumber,
       address,
       referralCode,
-      slCoins: 0, 
+      slCoins: 0,
       referralsCount: 0
     };
 
@@ -826,7 +866,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const updated = [freshNotif, ...notifications];
     setNotifications(updated);
     ls.setItem('sw_notifs', JSON.stringify(updated));
-    pushStateToServer({ notifications: updated });
+    fsSet('notifications', updated);
   };
 
   const updateOrderStatus = (orderId: string, status: Order['deliveryStatus']) => {
@@ -878,7 +918,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Handle coins redemption
     let coinsDiscount = 0;
     if (coinsToRedeem > 0) {
-      // Must not exceed wallet balance or order subtotal
       coinsDiscount = Math.min(coinsToRedeem, currentUser.slCoins, subtotal);
     }
 
@@ -900,8 +939,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const totalPaid = Math.max(0, subtotal - coinsDiscount - couponDiscount);
     const trackingNo = Math.floor(10000 + Math.random() * 90000);
     const orderId = `ORD-${trackingNo}`;
-    
-    // Payment Tracking ID structure
+
     let paymentId = '';
     if (paymentMethod === 'COD') {
       paymentId = `COD-SW-${trackingNo}`;
@@ -927,7 +965,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       date: new Date().toISOString()
     };
 
-    // 1. Deduct Product Stock & Increase Sales count
+    // Deduct Product Stock & Increase Sales count
     const updatedProducts = products.map(prod => {
       const cartMatches = cart.filter(c => c.productId === prod.id);
       if (cartMatches.length > 0) {
@@ -948,16 +986,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return prod;
     });
 
-    const updatedUser: UserAccount = {
-      ...currentUser
-    };
+    const updatedUser: UserAccount = { ...currentUser };
 
-    // Save all changes
     saveProducts(updatedProducts);
     saveOrders([freshOrder, ...orders]);
     saveCurUser(updatedUser);
-    
-    // Clear shopping cart
+
     setCart([]);
     ls.removeItem('sw_cart');
 
@@ -976,6 +1010,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       wishlist,
       cart,
       notifications,
+      isLoading,
       addProduct,
       updateProduct,
       deleteProduct,
