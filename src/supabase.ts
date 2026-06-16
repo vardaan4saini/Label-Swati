@@ -10,4 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  supabaseUrl || 'https://dummyproject.supabase.co',
+  supabaseAnonKey || 'dummy-anon-key'
+);
