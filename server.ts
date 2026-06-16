@@ -64,6 +64,25 @@ async function startServer() {
       appType: "spa",
     });
     app.use(vite.middlewares);
+
+    // Serve index.html for all non-API/non-static routes to enable client-side SPA routing
+    app.get("*", async (req, res, next) => {
+      // Avoid intercepting API routes
+      if (req.originalUrl.startsWith("/api/")) {
+        return next();
+      }
+      try {
+        let template = fs.readFileSync(
+          path.resolve(process.cwd(), "index.html"),
+          "utf-8"
+        );
+        template = await vite.transformIndexHtml(req.originalUrl, template);
+        res.status(200).set({ "Content-Type": "text/html" }).end(template);
+      } catch (e) {
+        vite.ssrFixStacktrace(e as Error);
+        next(e);
+      }
+    });
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));

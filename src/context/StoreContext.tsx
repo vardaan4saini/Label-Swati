@@ -3,52 +3,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  onSnapshot,
-  serverTimestamp
-} from 'firebase/firestore';
-import { db } from '../firebase';
-import { Product, Order, UserAccount, Coupon, SeasonalLookbook, UserFeedback, OrderItem } from '../types';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../supabase';
+import { Product, Order, Coupon, SeasonalLookbook, UserFeedback } from '../types';
 
 interface StoreContextType {
   products: Product[];
   orders: Order[];
-  users: UserAccount[];
-  currentUser: UserAccount | null;
   coupons: Coupon[];
   lookbooks: SeasonalLookbook[];
   feedbacks: UserFeedback[];
-  wishlist: string[]; // Product IDs
-  cart: { productId: string; size: string; quantity: number }[];
   notifications: { id: string; title: string; message: string; date: string; type: 'sale' | 'arrival' | 'general' }[];
   isLoading: boolean;
 
-  // App operations
+  // Admin operations
   addProduct: (product: Omit<Product, 'id' | 'salesCount' | 'creationDate'>) => void;
   updateProduct: (id: string, updated: Partial<Product>) => void;
   deleteProduct: (id: string) => void;
-  placeOrder: (
-    shippingDetails: { name: string; contact: string; address: string },
-    paymentMethod: Order['paymentMethod'],
-    coinsToRedeem: number,
-    couponCode?: string
-  ) => { success: boolean; orderId?: string; error?: string };
-  registerUser: (name: string, contactNumber: string, address: string) => UserAccount;
-  setCurrentUserById: (id: string) => void;
-  logoutUser: () => void;
-  updateCurrentUserProfile: (profile: Partial<UserAccount>) => void;
   addUpcomingCoupon: (coupon: Coupon) => void;
   deleteCoupon: (code: string) => void;
-  addToWishlist: (productId: string) => void;
-  removeFromWishlist: (productId: string) => void;
-  addToCart: (productId: string, size: string, quantity?: number) => void;
-  removeFromCart: (productId: string, size: string) => void;
-  updateCartQuantity: (productId: string, size: string, quantity: number) => void;
-  clearCart: () => void;
   addFeedback: (userName: string, userEmail: string, rating: number, message: string) => void;
   triggerSaleNotification: (title: string, message: string, type?: 'sale' | 'arrival' | 'general') => void;
   updateOrderStatus: (orderId: string, status: Order['deliveryStatus']) => void;
@@ -220,27 +193,6 @@ const DEFAULT_PRODUCTS: Product[] = [
   }
 ];
 
-const DEFAULT_USERS: UserAccount[] = [
-  {
-    id: 'user-swati-1',
-    name: 'Aanya Sharma',
-    contactNumber: '+919876543210',
-    address: '402, Signature Residency, GK II, New Delhi, India - 110048',
-    referralCode: 'AANYA02',
-    slCoins: 120,
-    referralsCount: 4
-  },
-  {
-    id: 'user-swati-2',
-    name: 'Kabir Mehta',
-    contactNumber: '+918123456789',
-    address: 'Block C-5, Ocean Heights, Worli Sea Face, Mumbai - 400030',
-    referralCode: 'KABIR89',
-    slCoins: 45,
-    referralsCount: 1
-  }
-];
-
 const DEFAULT_COUPONS: Coupon[] = [
   {
     code: 'SWATI10',
@@ -385,110 +337,118 @@ const DEFAULT_NOTIFICATIONS: StoreContextType['notifications'] = [
   }
 ];
 
-// Safe proxy wrapper around localStorage to catch and handle QuotaExceededError gracefully
-const ls = {
-  getItem: (key: string): string | null => {
-    try {
-      return localStorage.getItem(key);
-    } catch (e) {
-      console.warn('[LocalStorage] getItem failed:', e);
-      return null;
-    }
-  },
-  setItem: (key: string, value: string): void => {
-    try {
-      localStorage.setItem(key, value);
-    } catch (error: any) {
-      console.warn(`[LocalStorage] Failed to set key "${key}":`, error);
-      const isQuotaError =
-        error?.name === 'QuotaExceededError' ||
-        error?.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-        error?.code === 22 ||
-        error?.code === 1014 ||
-        error?.message?.toLowerCase().includes('quota') ||
-        error?.message?.toLowerCase().includes('exceeded');
+// ─── Supabase Mapper Utilities ─────────────────────────────────────────────
 
-      if (isQuotaError) {
-        if (key === 'sw_products') {
-          try {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed)) {
-              const pruned = parsed.map((p: any) => ({
-                ...p,
-                image: p.image?.startsWith('data:image')
-                  ? 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80'
-                  : p.image,
-                images: p.images
-                  ? p.images.map((img: string) => img?.startsWith('data:image')
-                    ? 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=600&q=80'
-                    : img)
-                  : []
-              }));
-              localStorage.setItem(key, JSON.stringify(pruned));
-            }
-          } catch (innerErr) {
-            console.error('[LocalStorage] Failed to parse and prune products state:', innerErr);
-          }
-        } else if (key === 'sw_orders' || key === 'sw_feedbacks' || key === 'sw_notifs') {
-          try {
-            const parsed = JSON.parse(value);
-            if (Array.isArray(parsed) && parsed.length > 20) {
-              localStorage.setItem(key, JSON.stringify(parsed.slice(0, 20)));
-            }
-          } catch (innerErr) {}
-        }
-      }
-    }
-  },
-  removeItem: (key: string): void => {
-    try {
-      localStorage.removeItem(key);
-    } catch (e) {
-      console.warn('[LocalStorage] removeItem failed:', e);
-    }
-  }
+const mapProductFromDb = (row: any): Product => ({
+  id: row.id,
+  name: row.name,
+  category: row.category,
+  price: Number(row.price),
+  originalPrice: row.original_price ? Number(row.original_price) : undefined,
+  description: row.description,
+  sizes: row.sizes || [],
+  stock: row.stock || {},
+  images: row.images || [],
+  salesCount: Number(row.sales_count || 0),
+  creationDate: row.creation_date,
+  isNewArrival: !!row.is_new_arrival,
+  isUpcoming: !!row.is_upcoming,
+  whatsappLink: row.whatsapp_link || undefined,
+});
+
+const mapProductToDb = (p: Partial<Product>) => {
+  const row: any = {};
+  if (p.id !== undefined) row.id = p.id;
+  if (p.name !== undefined) row.name = p.name;
+  if (p.category !== undefined) row.category = p.category;
+  if (p.price !== undefined) row.price = p.price;
+  if (p.originalPrice !== undefined) row.original_price = p.originalPrice;
+  if (p.description !== undefined) row.description = p.description;
+  if (p.sizes !== undefined) row.sizes = p.sizes;
+  if (p.stock !== undefined) row.stock = p.stock;
+  if (p.images !== undefined) row.images = p.images;
+  if (p.salesCount !== undefined) row.sales_count = p.salesCount;
+  if (p.creationDate !== undefined) row.creation_date = p.creationDate;
+  if (p.isNewArrival !== undefined) row.is_new_arrival = p.isNewArrival;
+  if (p.isUpcoming !== undefined) row.is_upcoming = p.isUpcoming;
+  if (p.whatsappLink !== undefined) row.whatsapp_link = p.whatsappLink;
+  return row;
 };
 
-// ─── Firestore helpers ──────────────────────────────────────────────────────
-const STORE_COLLECTION = 'store';
+const mapOrderFromDb = (row: any): Order => ({
+  id: row.id,
+  userId: row.user_id,
+  userName: row.user_name,
+  userContact: row.user_contact,
+  userAddress: row.user_address,
+  items: row.items || [],
+  subtotal: Number(row.subtotal),
+  discountCoinsApplied: Number(row.discount_coins_applied || 0),
+  discountCouponApplied: Number(row.discount_coupon_applied || 0),
+  couponCodeUsed: row.coupon_code_used || undefined,
+  totalPaid: Number(row.total_paid),
+  paymentMethod: row.payment_method,
+  paymentId: row.payment_id,
+  deliveryStatus: row.delivery_status,
+  date: row.date,
+});
 
-const fsGet = async <T,>(docId: string): Promise<T[] | null> => {
-  try {
-    const snap = await getDoc(doc(db, STORE_COLLECTION, docId));
-    if (snap.exists()) {
-      const data = snap.data();
-      return (data?.items as T[]) ?? null;
-    }
-    return null;
-  } catch (err) {
-    console.error(`[Firestore] getDoc "${docId}" failed:`, err);
-    return null;
-  }
+const mapCouponFromDb = (row: any): Coupon => ({
+  code: row.code,
+  discountValue: Number(row.discount_value),
+  type: row.type,
+  minCartValue: Number(row.min_cart_value),
+  isActive: !!row.is_active,
+  description: row.description,
+});
+
+const mapCouponToDb = (c: Partial<Coupon>) => {
+  const row: any = {};
+  if (c.code !== undefined) row.code = c.code;
+  if (c.discountValue !== undefined) row.discount_value = c.discountValue;
+  if (c.type !== undefined) row.type = c.type;
+  if (c.minCartValue !== undefined) row.min_cart_value = c.minCartValue;
+  if (c.isActive !== undefined) row.is_active = c.isActive;
+  if (c.description !== undefined) row.description = c.description;
+  return row;
 };
 
-// Firestore does not allow `undefined` values anywhere in a document.
-// This sanitizer recursively replaces undefined with null so writes never fail.
-const sanitizeForFirestore = (obj: any): any => {
-  if (Array.isArray(obj)) return obj.map(sanitizeForFirestore);
-  if (obj !== null && typeof obj === 'object') {
-    const clean: any = {};
-    for (const key of Object.keys(obj)) {
-      const val = obj[key];
-      clean[key] = val === undefined ? null : sanitizeForFirestore(val);
-    }
-    return clean;
-  }
-  return obj;
+const mapFeedbackFromDb = (row: any): UserFeedback => ({
+  id: row.id,
+  userName: row.user_name,
+  userEmail: row.user_email,
+  rating: Number(row.rating),
+  message: row.message,
+  date: row.date,
+});
+
+const mapFeedbackToDb = (f: Partial<UserFeedback>) => {
+  const row: any = {};
+  if (f.id !== undefined) row.id = f.id;
+  if (f.userName !== undefined) row.user_name = f.userName;
+  if (f.userEmail !== undefined) row.user_email = f.userEmail;
+  if (f.rating !== undefined) row.rating = f.rating;
+  if (f.message !== undefined) row.message = f.message;
+  if (f.date !== undefined) row.date = f.date;
+  return row;
 };
 
-const fsSet = async (docId: string, items: any[]): Promise<void> => {
-  try {
-    const safeItems = sanitizeForFirestore(items);
-    await setDoc(doc(db, STORE_COLLECTION, docId), { items: safeItems, updatedAt: serverTimestamp() });
-    console.log(`[Firestore] ✅ setDoc "${docId}" success (${safeItems.length} items)`);
-  } catch (err) {
-    console.error(`[Firestore] ❌ setDoc "${docId}" failed:`, err);
-  }
+const mapNotificationFromDb = (row: any): StoreContextType['notifications'][number] => ({
+  id: row.id,
+  title: row.title,
+  message: row.message,
+  date: row.date,
+  type: row.type,
+});
+
+const mapNotificationToDb = (n: Partial<StoreContextType['notifications'][number]>) => {
+  const row: any = {};
+  if (n.id !== undefined) row.id = n.id;
+  if (n.title !== undefined) row.title = n.title;
+  if (n.message !== undefined) row.message = n.message;
+  if (n.date !== undefined) row.date = n.date;
+  if (n.type !== undefined) row.type = n.type;
+  return row;
 };
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -496,353 +456,199 @@ const fsSet = async (docId: string, items: any[]): Promise<void> => {
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [users, setUsers] = useState<UserAccount[]>([]);
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [lookbooks, setLookbooks] = useState<SeasonalLookbook[]>([]);
   const [feedbacks, setFeedbacks] = useState<UserFeedback[]>([]);
-  const [wishlist, setWishlist] = useState<string[]>([]);
-  const [cart, setCart] = useState<{ productId: string; size: string; quantity: number }[]>([]);
   const [notifications, setNotifications] = useState<StoreContextType['notifications']>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Track whether we've seeded Firestore so we don't overwrite on re-render
-  const seededRef = useRef(false);
-
-  // ── 1. Bootstrap: load localStorage cache, then fetch Firestore on mount ──
+  // ── 1. Bootstrap: fetch Supabase on mount ──
   useEffect(() => {
     const bootstrap = async () => {
-      // --- LocalStorage fast cache ---
-      try {
-        const storedUsers = ls.getItem('sw_users');
-        const storedCurUser = ls.getItem('sw_current_user');
-        const storedWishlist = ls.getItem('sw_wishlist');
-        const storedCart = ls.getItem('sw_cart');
-
-        if (storedUsers) {
-          const parsedUsers = JSON.parse(storedUsers);
-          setUsers(parsedUsers);
-          if (storedCurUser) {
-            const cur = JSON.parse(storedCurUser);
-            const activeUser = parsedUsers.find((u: UserAccount) => u.id === cur.id);
-            setCurrentUser(activeUser || parsedUsers[0]);
-          } else {
-            setCurrentUser(parsedUsers[0]);
-            ls.setItem('sw_current_user', JSON.stringify(parsedUsers[0]));
-          }
-        } else {
-          setUsers(DEFAULT_USERS);
-          setCurrentUser(DEFAULT_USERS[0]);
-          ls.setItem('sw_users', JSON.stringify(DEFAULT_USERS));
-          ls.setItem('sw_current_user', JSON.stringify(DEFAULT_USERS[0]));
-        }
-
-        if (storedWishlist) setWishlist(JSON.parse(storedWishlist));
-        if (storedCart) setCart(JSON.parse(storedCart));
-      } catch (e) {
-        console.error('[Bootstrap] localStorage load failed:', e);
-      }
-
-      // Lookbooks are static; not synced to Firestore
       setLookbooks(DEFAULT_LOOKBOOKS);
 
-      // --- Firestore initial fetch ---
+      // --- Supabase Database Load ---
       try {
-        const [fsProducts, fsOrders, fsCoupons, fsFeedbacks, fsNotifs] = await Promise.all([
-          fsGet<Product>('products'),
-          fsGet<Order>('orders'),
-          fsGet<Coupon>('coupons'),
-          fsGet<UserFeedback>('feedbacks'),
-          fsGet<StoreContextType['notifications'][number]>('notifications'),
-        ]);
+        // Check if database needs seeding
+        const { count, error: countErr } = await supabase
+          .from('products')
+          .select('*', { count: 'exact', head: true });
 
-        let seedNeeded = false;
-
-        if (fsProducts && fsProducts.length > 0) {
-          setProducts(fsProducts);
-          ls.setItem('sw_products', JSON.stringify(fsProducts));
-        } else {
-          setProducts(DEFAULT_PRODUCTS);
-          ls.setItem('sw_products', JSON.stringify(DEFAULT_PRODUCTS));
-          seedNeeded = true;
-        }
-
-        if (fsOrders && fsOrders.length > 0) {
-          setOrders(fsOrders);
-          ls.setItem('sw_orders', JSON.stringify(fsOrders));
-        } else {
-          setOrders(DEFAULT_ORDERS);
-          ls.setItem('sw_orders', JSON.stringify(DEFAULT_ORDERS));
-          seedNeeded = true;
-        }
-
-        if (fsCoupons && fsCoupons.length > 0) {
-          setCoupons(fsCoupons);
-          ls.setItem('sw_coupons', JSON.stringify(fsCoupons));
-        } else {
-          setCoupons(DEFAULT_COUPONS);
-          ls.setItem('sw_coupons', JSON.stringify(DEFAULT_COUPONS));
-          seedNeeded = true;
-        }
-
-        if (fsFeedbacks && fsFeedbacks.length > 0) {
-          setFeedbacks(fsFeedbacks);
-          ls.setItem('sw_feedbacks', JSON.stringify(fsFeedbacks));
-        } else {
-          setFeedbacks(DEFAULT_FEEDBACKS);
-          ls.setItem('sw_feedbacks', JSON.stringify(DEFAULT_FEEDBACKS));
-          seedNeeded = true;
-        }
-
-        if (fsNotifs && fsNotifs.length > 0) {
-          setNotifications(fsNotifs as StoreContextType['notifications']);
-          ls.setItem('sw_notifs', JSON.stringify(fsNotifs));
-        } else {
-          setNotifications(DEFAULT_NOTIFICATIONS);
-          ls.setItem('sw_notifs', JSON.stringify(DEFAULT_NOTIFICATIONS));
-          seedNeeded = true;
-        }
-
-        // Seed Firestore with defaults on first load
-        if (seedNeeded && !seededRef.current) {
-          seededRef.current = true;
+        if (!countErr && (count === 0 || count === null)) {
+          console.log('[Supabase] Database is empty. Seeding defaults...');
           await Promise.all([
-            fsSet('products', DEFAULT_PRODUCTS),
-            fsSet('orders', DEFAULT_ORDERS),
-            fsSet('coupons', DEFAULT_COUPONS),
-            fsSet('feedbacks', DEFAULT_FEEDBACKS),
-            fsSet('notifications', DEFAULT_NOTIFICATIONS),
+            supabase.from('products').insert(DEFAULT_PRODUCTS.map(mapProductToDb)),
+            supabase.from('coupons').insert(DEFAULT_COUPONS.map(mapCouponToDb)),
+            supabase.from('feedbacks').insert(DEFAULT_FEEDBACKS.map(mapFeedbackToDb)),
+            supabase.from('notifications').insert(DEFAULT_NOTIFICATIONS.map(mapNotificationToDb)),
           ]);
         }
-      } catch (err) {
-        console.error('[Bootstrap] Firestore initial fetch failed:', err);
-        // Fall back to localStorage cache or defaults
-        const cached = {
-          products: ls.getItem('sw_products'),
-          orders: ls.getItem('sw_orders'),
-          coupons: ls.getItem('sw_coupons'),
-          feedbacks: ls.getItem('sw_feedbacks'),
-          notifs: ls.getItem('sw_notifs'),
-        };
-        if (cached.products) setProducts(JSON.parse(cached.products)); else setProducts(DEFAULT_PRODUCTS);
-        if (cached.orders) setOrders(JSON.parse(cached.orders)); else setOrders(DEFAULT_ORDERS);
-        if (cached.coupons) setCoupons(JSON.parse(cached.coupons)); else setCoupons(DEFAULT_COUPONS);
-        if (cached.feedbacks) setFeedbacks(JSON.parse(cached.feedbacks)); else setFeedbacks(DEFAULT_FEEDBACKS);
-        if (cached.notifs) setNotifications(JSON.parse(cached.notifs)); else setNotifications(DEFAULT_NOTIFICATIONS);
-      }
 
-      setIsLoading(false);
+        // Fetch all tables
+        const [
+          { data: dbProducts },
+          { data: dbOrders },
+          { data: dbCoupons },
+          { data: dbFeedbacks },
+          { data: dbNotifications },
+        ] = await Promise.all([
+          supabase.from('products').select('*').order('creation_date', { ascending: false }),
+          supabase.from('orders').select('*').order('date', { ascending: false }),
+          supabase.from('coupons').select('*'),
+          supabase.from('feedbacks').select('*').order('date', { ascending: false }),
+          supabase.from('notifications').select('*').order('date', { ascending: false }),
+        ]);
+
+        setProducts(dbProducts ? dbProducts.map(mapProductFromDb) : DEFAULT_PRODUCTS);
+        setOrders(dbOrders ? dbOrders.map(mapOrderFromDb) : DEFAULT_ORDERS);
+        setCoupons(dbCoupons ? dbCoupons.map(mapCouponFromDb) : DEFAULT_COUPONS);
+        setFeedbacks(dbFeedbacks ? dbFeedbacks.map(mapFeedbackFromDb) : DEFAULT_FEEDBACKS);
+        setNotifications(dbNotifications ? dbNotifications.map(mapNotificationFromDb) : DEFAULT_NOTIFICATIONS);
+
+      } catch (err) {
+        console.error('[Bootstrap] Supabase connection failed. Falling back to defaults:', err);
+        setProducts(DEFAULT_PRODUCTS);
+        setOrders(DEFAULT_ORDERS);
+        setCoupons(DEFAULT_COUPONS);
+        setFeedbacks(DEFAULT_FEEDBACKS);
+        setNotifications(DEFAULT_NOTIFICATIONS);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     bootstrap();
   }, []);
 
-  // ── 2. Real-time Firestore listeners (onSnapshot) ──────────────────────
-  // Guard: skip updates that are still pending local writes (echoes of our own writes)
-  // or that come from the local offline cache only.
+  // ── 2. Real-time Supabase subscriptions (Admin → Storefront sync) ──
   useEffect(() => {
-    const makeListener = <T,>(
-      docId: string,
-      setter: (items: T[]) => void,
-      cacheKey: string
-    ) => onSnapshot(
-      doc(db, STORE_COLLECTION, docId),
-      { includeMetadataChanges: true },
-      (snap) => {
-        // Skip cache-only reads and pending (unconfirmed) local writes
-        if (snap.metadata.fromCache || snap.metadata.hasPendingWrites) return;
-        if (snap.exists()) {
-          const items = snap.data()?.items as T[];
-          if (Array.isArray(items)) {
-            setter(items);
-            ls.setItem(cacheKey, JSON.stringify(items));
-            console.log(`[Firestore] 🔄 ${docId} synced (${items.length} items)`);
-          }
-        }
-      },
-      (err) => console.warn(`[Firestore] ${docId} listener error:`, err)
-    );
+    const handleProductChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        const newProd = mapProductFromDb(payload.new);
+        setProducts(prev => [newProd, ...prev.filter(p => p.id !== newProd.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedProd = mapProductFromDb(payload.new);
+        setProducts(prev => prev.map(p => p.id === updatedProd.id ? updatedProd : p));
+      } else if (payload.eventType === 'DELETE') {
+        setProducts(prev => prev.filter(p => p.id !== payload.old.id));
+      }
+    };
 
-    const unsubProducts = makeListener<Product>('products', setProducts, 'sw_products');
-    const unsubOrders = makeListener<Order>('orders', setOrders, 'sw_orders');
-    const unsubCoupons = makeListener<Coupon>('coupons', setCoupons, 'sw_coupons');
-    const unsubFeedbacks = makeListener<UserFeedback>('feedbacks', setFeedbacks, 'sw_feedbacks');
-    const unsubNotifs = makeListener<StoreContextType['notifications'][number]>(
-      'notifications',
-      (items) => setNotifications(items as StoreContextType['notifications']),
-      'sw_notifs'
-    );
+    const handleOrderChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        const newOrder = mapOrderFromDb(payload.new);
+        setOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedOrder = mapOrderFromDb(payload.new);
+        setOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
+      } else if (payload.eventType === 'DELETE') {
+        setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+      }
+    };
+
+    const handleCouponChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        const newCoupon = mapCouponFromDb(payload.new);
+        setCoupons(prev => [newCoupon, ...prev.filter(c => c.code !== newCoupon.code)]);
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedCoupon = mapCouponFromDb(payload.new);
+        setCoupons(prev => prev.map(c => c.code === updatedCoupon.code ? updatedCoupon : c));
+      } else if (payload.eventType === 'DELETE') {
+        setCoupons(prev => prev.filter(c => c.code !== payload.old.code));
+      }
+    };
+
+    const handleFeedbackChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        const newFB = mapFeedbackFromDb(payload.new);
+        setFeedbacks(prev => [newFB, ...prev.filter(f => f.id !== newFB.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedFB = mapFeedbackFromDb(payload.new);
+        setFeedbacks(prev => prev.map(f => f.id === updatedFB.id ? updatedFB : f));
+      } else if (payload.eventType === 'DELETE') {
+        setFeedbacks(prev => prev.filter(f => f.id !== payload.old.id));
+      }
+    };
+
+    const handleNotifChange = (payload: any) => {
+      if (payload.eventType === 'INSERT') {
+        const newNotif = mapNotificationFromDb(payload.new);
+        setNotifications(prev => [newNotif, ...prev.filter(n => n.id !== newNotif.id)]);
+      } else if (payload.eventType === 'UPDATE') {
+        const updatedNotif = mapNotificationFromDb(payload.new);
+        setNotifications(prev => prev.map(n => n.id === updatedNotif.id ? updatedNotif : n));
+      } else if (payload.eventType === 'DELETE') {
+        setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+      }
+    };
+
+    const channel = supabase
+      .channel('store-realtime-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, handleProductChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, handleOrderChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'coupons' }, handleCouponChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'feedbacks' }, handleFeedbackChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, handleNotifChange)
+      .subscribe();
 
     return () => {
-      unsubProducts();
-      unsubOrders();
-      unsubCoupons();
-      unsubFeedbacks();
-      unsubNotifs();
+      supabase.removeChannel(channel);
     };
   }, []);
 
-
-  // ── Save utility wrappers (write to state + localStorage + Firestore) ──
-  const saveProducts = (prods: Product[]) => {
-    setProducts(prods);
-    ls.setItem('sw_products', JSON.stringify(prods));
-    fsSet('products', prods);
-  };
-
-  const saveOrders = (ords: Order[]) => {
-    setOrders(ords);
-    ls.setItem('sw_orders', JSON.stringify(ords));
-    fsSet('orders', ords);
-  };
-
-  const saveUsers = (us: UserAccount[]) => {
-    setUsers(us);
-    ls.setItem('sw_users', JSON.stringify(us));
-  };
-
-  const saveCurUser = (user: UserAccount | null) => {
-    setCurrentUser(user);
-    if (user) {
-      ls.setItem('sw_current_user', JSON.stringify(user));
-      const updatedList = users.map(u => u.id === user.id ? user : u);
-      saveUsers(updatedList);
-    } else {
-      ls.removeItem('sw_current_user');
-    }
-  };
-
-  const saveCoupons = (cps: Coupon[]) => {
-    setCoupons(cps);
-    ls.setItem('sw_coupons', JSON.stringify(cps));
-    fsSet('coupons', cps);
-  };
-
-  const saveFeedbacks = (fbs: UserFeedback[]) => {
-    setFeedbacks(fbs);
-    ls.setItem('sw_feedbacks', JSON.stringify(fbs));
-    fsSet('feedbacks', fbs);
-  };
-
-  // ── State modification handlers ────────────────────────────────────────
-  const addProduct = (newProd: Omit<Product, 'id' | 'salesCount' | 'creationDate'>) => {
+  const addProduct = async (newProd: Omit<Product, 'id' | 'salesCount' | 'creationDate'>) => {
     const fresh: Product = {
       ...newProd,
       id: `prod-${Date.now()}`,
       salesCount: 0,
       creationDate: new Date().toISOString()
     };
-    const updated = [fresh, ...products];
-    saveProducts(updated);
-  };
-
-  const updateProduct = (id: string, updated: Partial<Product>) => {
-    const modified = products.map(p => p.id === id ? { ...p, ...updated } : p);
-    saveProducts(modified);
-  };
-
-  const deleteProduct = (id: string) => {
-    const modified = products.filter(p => p.id !== id);
-    saveProducts(modified);
-  };
-
-  const registerUser = (name: string, contactNumber: string, address: string) => {
-    const codePrefix = name.substring(0, 5).toUpperCase().replace(/\s/g, '');
-    const referralCode = `${codePrefix}${Math.floor(10 + Math.random() * 90)}`;
-
-    const freshUser: UserAccount = {
-      id: `usr-${Date.now()}`,
-      name,
-      contactNumber,
-      address,
-      referralCode,
-      slCoins: 0,
-      referralsCount: 0
-    };
-
-    const updatedWithNew = [...users, freshUser];
-    saveUsers(updatedWithNew);
-    saveCurUser(freshUser);
-
-    return freshUser;
-  };
-
-  const setCurrentUserById = (id: string) => {
-    const target = users.find(u => u.id === id);
-    if (target) {
-      saveCurUser(target);
+    
+    setProducts(prev => [fresh, ...prev]);
+    const { error } = await supabase.from('products').insert(mapProductToDb(fresh));
+    if (error) {
+      console.error('[Supabase] addProduct failed:', error);
+      alert(`Database Error (Add Product): ${error.message}`);
     }
   };
 
-  const logoutUser = () => {
-    saveCurUser(null);
-  };
-
-  const updateCurrentUserProfile = (profile: Partial<UserAccount>) => {
-    if (currentUser) {
-      const updated = { ...currentUser, ...profile };
-      saveCurUser(updated);
+  const updateProduct = async (id: string, updated: Partial<Product>) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+    const { error } = await supabase.from('products').update(mapProductToDb(updated)).eq('id', id);
+    if (error) {
+      console.error('[Supabase] updateProduct failed:', error);
+      alert(`Database Error (Update Product): ${error.message}`);
     }
   };
 
-  const addUpcomingCoupon = (newCoupon: Coupon) => {
-    const updated = [newCoupon, ...coupons];
-    saveCoupons(updated);
-  };
-
-  const deleteCoupon = (code: string) => {
-    const updated = coupons.filter(c => c.code !== code);
-    saveCoupons(updated);
-  };
-
-  const addToWishlist = (productId: string) => {
-    if (!wishlist.includes(productId)) {
-      const updated = [...wishlist, productId];
-      setWishlist(updated);
-      ls.setItem('sw_wishlist', JSON.stringify(updated));
+  const deleteProduct = async (id: string) => {
+    setProducts(prev => prev.filter(p => p.id !== id));
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) {
+      console.error('[Supabase] deleteProduct failed:', error);
+      alert(`Database Error (Delete Product): ${error.message}`);
     }
   };
 
-  const removeFromWishlist = (productId: string) => {
-    const updated = wishlist.filter(id => id !== productId);
-    setWishlist(updated);
-    ls.setItem('sw_wishlist', JSON.stringify(updated));
-  };
-
-  const addToCart = (productId: string, size: string, quantity = 1) => {
-    const itemIdx = cart.findIndex(c => c.productId === productId && c.size === size);
-    let updated;
-    if (itemIdx > -1) {
-      updated = cart.map((c, i) => i === itemIdx ? { ...c, quantity: c.quantity + quantity } : c);
-    } else {
-      updated = [...cart, { productId, size, quantity }];
+  const addUpcomingCoupon = async (newCoupon: Coupon) => {
+    setCoupons(prev => [newCoupon, ...prev]);
+    const { error } = await supabase.from('coupons').insert(mapCouponToDb(newCoupon));
+    if (error) {
+      console.error('[Supabase] addUpcomingCoupon failed:', error);
+      alert(`Database Error (Add Coupon): ${error.message}`);
     }
-    setCart(updated);
-    ls.setItem('sw_cart', JSON.stringify(updated));
   };
 
-  const removeFromCart = (productId: string, size: string) => {
-    const updated = cart.filter(c => !(c.productId === productId && c.size === size));
-    setCart(updated);
-    ls.setItem('sw_cart', JSON.stringify(updated));
-  };
-
-  const updateCartQuantity = (productId: string, size: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId, size);
-      return;
+  const deleteCoupon = async (code: string) => {
+    setCoupons(prev => prev.filter(c => c.code !== code));
+    const { error } = await supabase.from('coupons').delete().eq('code', code);
+    if (error) {
+      console.error('[Supabase] deleteCoupon failed:', error);
+      alert(`Database Error (Delete Coupon): ${error.message}`);
     }
-    const updated = cart.map(c => (c.productId === productId && c.size === size) ? { ...c, quantity } : c);
-    setCart(updated);
-    ls.setItem('sw_cart', JSON.stringify(updated));
   };
 
-  const clearCart = () => {
-    setCart([]);
-    ls.setItem('sw_cart', JSON.stringify([]));
-  };
-
-  const addFeedback = (userName: string, userEmail: string, rating: number, message: string) => {
+  const addFeedback = async (userName: string, userEmail: string, rating: number, message: string) => {
     const feed: UserFeedback = {
       id: `feed-${Date.now()}`,
       userName,
@@ -851,11 +657,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       message,
       date: new Date().toISOString()
     };
-    const updated = [feed, ...feedbacks];
-    saveFeedbacks(updated);
+    setFeedbacks(prev => [feed, ...prev]);
+    const { error } = await supabase.from('feedbacks').insert(mapFeedbackToDb(feed));
+    if (error) {
+      console.error('[Supabase] addFeedback failed:', error);
+      alert(`Database Error (Add Feedback): ${error.message}`);
+    }
   };
 
-  const triggerSaleNotification = (title: string, message: string, type: 'sale' | 'arrival' | 'general' = 'general') => {
+  const triggerSaleNotification = async (title: string, message: string, type: 'sale' | 'arrival' | 'general' = 'general') => {
     const freshNotif = {
       id: `notif-${Date.now()}`,
       title,
@@ -863,170 +673,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       date: new Date().toISOString(),
       type
     };
-    const updated = [freshNotif, ...notifications];
-    setNotifications(updated);
-    ls.setItem('sw_notifs', JSON.stringify(updated));
-    fsSet('notifications', updated);
+    setNotifications(prev => [freshNotif, ...prev]);
+    const { error } = await supabase.from('notifications').insert(mapNotificationToDb(freshNotif));
+    if (error) {
+      console.error('[Supabase] triggerSaleNotification failed:', error);
+      alert(`Database Error (Add Notification): ${error.message}`);
+    }
   };
 
-  const updateOrderStatus = (orderId: string, status: Order['deliveryStatus']) => {
-    const updated = orders.map(o => o.id === orderId ? { ...o, deliveryStatus: status } : o);
-    saveOrders(updated);
-  };
-
-  const placeOrder = (
-    shippingDetails: { name: string; contact: string; address: string },
-    paymentMethod: Order['paymentMethod'],
-    coinsToRedeem: number,
-    couponCode?: string
-  ) => {
-    if (cart.length === 0) {
-      return { success: false, error: 'Your cart is empty' };
+  const updateOrderStatus = async (orderId: string, status: Order['deliveryStatus']) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, deliveryStatus: status } : o));
+    const { error } = await supabase.from('orders').update({ delivery_status: status }).eq('id', orderId);
+    if (error) {
+      console.error('[Supabase] updateOrderStatus failed:', error);
+      alert(`Database Error (Update Order): ${error.message}`);
     }
-
-    if (!currentUser) {
-      return { success: false, error: 'Please register or log in first' };
-    }
-
-    // Verify stock availability
-    for (const item of cart) {
-      const prod = products.find(p => p.id === item.productId);
-      if (!prod) {
-        return { success: false, error: `Product not found` };
-      }
-      const available = prod.stock[item.size] || 0;
-      if (available < item.quantity) {
-        return { success: false, error: `Sorry, only ${available} unit(s) of ${prod.name} (Size ${item.size}) in stock.` };
-      }
-    }
-
-    // Calculate billing
-    let subtotal = 0;
-    const orderItems: OrderItem[] = cart.map(item => {
-      const prod = products.find(p => p.id === item.productId)!;
-      subtotal += prod.price * item.quantity;
-      return {
-        productId: prod.id,
-        productName: prod.name,
-        productImage: prod.images[0],
-        size: item.size,
-        quantity: item.quantity,
-        priceAtPurchase: prod.price
-      };
-    });
-
-    // Handle coins redemption
-    let coinsDiscount = 0;
-    if (coinsToRedeem > 0) {
-      coinsDiscount = Math.min(coinsToRedeem, currentUser.slCoins, subtotal);
-    }
-
-    // Handle coupon code discount
-    let couponDiscount = 0;
-    if (couponCode) {
-      const cp = coupons.find(c => c.code.toUpperCase() === couponCode.toUpperCase() && c.isActive);
-      if (cp) {
-        if (subtotal >= cp.minCartValue) {
-          if (cp.type === 'percent') {
-            couponDiscount = Math.round((subtotal * cp.discountValue) / 100);
-          } else {
-            couponDiscount = cp.discountValue;
-          }
-        }
-      }
-    }
-
-    const totalPaid = Math.max(0, subtotal - coinsDiscount - couponDiscount);
-    const trackingNo = Math.floor(10000 + Math.random() * 90000);
-    const orderId = `ORD-${trackingNo}`;
-
-    let paymentId = '';
-    if (paymentMethod === 'COD') {
-      paymentId = `COD-SW-${trackingNo}`;
-    } else {
-      paymentId = `TXN-SW-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-    }
-
-    const freshOrder: Order = {
-      id: orderId,
-      userId: currentUser.id,
-      userName: shippingDetails.name,
-      userContact: shippingDetails.contact,
-      userAddress: shippingDetails.address,
-      items: orderItems,
-      subtotal,
-      discountCoinsApplied: coinsDiscount,
-      discountCouponApplied: couponDiscount,
-      couponCodeUsed: couponCode,
-      totalPaid,
-      paymentMethod,
-      paymentId,
-      deliveryStatus: 'Pending',
-      date: new Date().toISOString()
-    };
-
-    // Deduct Product Stock & Increase Sales count
-    const updatedProducts = products.map(prod => {
-      const cartMatches = cart.filter(c => c.productId === prod.id);
-      if (cartMatches.length > 0) {
-        const itemStock = { ...prod.stock };
-        let addedSales = 0;
-        cartMatches.forEach(match => {
-          if (itemStock[match.size] !== undefined) {
-            itemStock[match.size] = Math.max(0, itemStock[match.size] - match.quantity);
-            addedSales += match.quantity;
-          }
-        });
-        return {
-          ...prod,
-          stock: itemStock,
-          salesCount: prod.salesCount + addedSales
-        };
-      }
-      return prod;
-    });
-
-    const updatedUser: UserAccount = { ...currentUser };
-
-    saveProducts(updatedProducts);
-    saveOrders([freshOrder, ...orders]);
-    saveCurUser(updatedUser);
-
-    setCart([]);
-    ls.removeItem('sw_cart');
-
-    return { success: true, orderId };
   };
 
   return (
     <StoreContext.Provider value={{
       products,
       orders,
-      users,
-      currentUser,
       coupons,
       lookbooks,
       feedbacks,
-      wishlist,
-      cart,
       notifications,
       isLoading,
       addProduct,
       updateProduct,
       deleteProduct,
-      placeOrder,
-      registerUser,
-      setCurrentUserById,
-      logoutUser,
-      updateCurrentUserProfile,
       addUpcomingCoupon,
       deleteCoupon,
-      addToWishlist,
-      removeFromWishlist,
-      addToCart,
-      removeFromCart,
-      updateCartQuantity,
-      clearCart,
       addFeedback,
       triggerSaleNotification,
       updateOrderStatus

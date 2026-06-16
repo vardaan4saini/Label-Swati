@@ -11,9 +11,9 @@ import {
   Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { 
-  LayoutDashboard, Package, ShoppingCart, Users, Ticket, AlertTriangle, 
-  Trash2, Plus, RefreshCw, Layers, TrendingUp, CheckCircle, Info, ArrowLeft,
-  Camera, CameraOff, Video
+  Package, ShoppingCart, Ticket, AlertTriangle, 
+  Trash2, Plus, TrendingUp, ArrowLeft,
+  Camera
 } from 'lucide-react';
 import { motion } from 'motion/react';
 
@@ -25,7 +25,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
   const {
     products,
     orders,
-    users,
     coupons,
     feedbacks,
     addProduct,
@@ -113,6 +112,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
   const [newProdImage3, setNewProdImage3] = useState('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80');
   const [newProdImage4, setNewProdImage4] = useState('https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&auto=format&fit=crop&q=80');
   const [newProdImage5, setNewProdImage5] = useState('https://images.unsplash.com/photo-1548624149-f9c17d4d6351?w=800&auto=format&fit=crop&q=80');
+  const [newProdWhatsappLink, setNewProdWhatsappLink] = useState('');
 
   // Coupon creation states
   const [newCpCode, setNewCpCode] = useState('');
@@ -129,6 +129,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
   const [editStockL, setEditStockL] = useState<number>(0);
   const [editStockXL, setEditStockXL] = useState<number>(0);
   const [editStockXXL, setEditStockXXL] = useState<number>(0);
+  const [editWhatsappLink, setEditWhatsappLink] = useState('');
 
   // ALARMS AND DIAGNOSTICS CALCULATIONS
   // 1. Inventory Exhaustion Alarm: total aggregate stock < 5 or size completely out of stock
@@ -208,7 +209,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
         newProdImage3 || 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80',
         newProdImage4 || 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&auto=format&fit=crop&q=80',
         newProdImage5 || 'https://images.unsplash.com/photo-1548624149-f9c17d4d6351?w=800&auto=format&fit=crop&q=80'
-      ]
+      ],
+      whatsappLink: newProdWhatsappLink || undefined
     });
 
     // Reset fields
@@ -220,6 +222,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
     setNewProdImage3('https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80');
     setNewProdImage4('https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&auto=format&fit=crop&q=80');
     setNewProdImage5('https://images.unsplash.com/photo-1548624149-f9c17d4d6351?w=800&auto=format&fit=crop&q=80');
+    setNewProdWhatsappLink('');
     
     triggerSaleNotification(
       'New Collection Arrival!',
@@ -253,7 +256,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
     alert('New promo coupon successfully minted!');
   };
 
-  const handleOverrideStock = (productId: string) => {
+  const handleOverrideProductDetails = (productId: string) => {
     updateProduct(productId, {
       stock: {
         'S': editStockS,
@@ -261,10 +264,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
         'L': editStockL,
         'XL': editStockXL,
         'XXL': editStockXXL
-      }
+      },
+      whatsappLink: editWhatsappLink || undefined
     });
     setEditingProductId(null);
-    alert('Garment size quantities overridden successfully!');
+    alert('Garment details and stock quantities overridden successfully!');
   };
 
   return (
@@ -336,7 +340,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                   adminTab === 'orders' ? 'bg-[#4C1D95] text-white font-semibold shadow-xs' : 'text-stone-600 hover:bg-stone-100'
                 }`}
               >
-                <ShoppingCart className="w-4 h-4" /> Customers & Orders
+                <ShoppingCart className="w-4 h-4" /> Orders & Fulfillment
               </button>
 
               <button
@@ -433,9 +437,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                   </div>
 
                   <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-stone-400 font-mono">Total Affiliated Members</p>
-                    <h3 className="text-xl font-bold font-mono text-stone-900 mt-1">{users.length} profiles</h3>
-                    <span className="text-[10px] text-emerald-600 font-semibold font-mono">100% responsive enlists</span>
+                    <p className="text-[10px] uppercase tracking-wider text-stone-400 font-mono">Total Catalogued Designs</p>
+                    <h3 className="text-xl font-bold font-mono text-stone-900 mt-1">{products.length} products</h3>
+                    <span className="text-[10px] text-emerald-600 font-semibold font-mono">Active in catalogue</span>
                   </div>
 
                 </div>
@@ -560,6 +564,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                           onChange={(e) => setNewProdPrice(Math.max(1, parseInt(e.target.value) || 0))}
                           className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white font-mono"
                           placeholder="₹ Price size"
+                        />
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <label className="block text-xs font-semibold text-stone-700">WhatsApp Product Link (Optional)</label>
+                        <input 
+                          type="text" 
+                          value={newProdWhatsappLink}
+                          onChange={(e) => setNewProdWhatsappLink(e.target.value)}
+                          className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white font-mono"
+                          placeholder="E.g., https://wa.me/p/... or custom"
                         />
                       </div>
                     </div>
@@ -788,6 +803,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                                 <div>
                                   <p className="font-bold text-stone-900">{prod.name}</p>
                                   <p className="text-[9px] text-stone-400 font-mono uppercase">ID: {prod.id}</p>
+                                  {prod.whatsappLink ? (
+                                    <p className="text-[9px] text-emerald-600 font-mono truncate max-w-[200px]" title={prod.whatsappLink}>
+                                      🔗 Link: {prod.whatsappLink}
+                                    </p>
+                                  ) : (
+                                    <p className="text-[9px] text-amber-600 font-mono">
+                                      ⚠️ No Specific Link (Fallback Active)
+                                    </p>
+                                  )}
                                   <div className="flex items-center gap-2 mt-1">
                                     <button
                                       onClick={() => document.getElementById(`upload-${prod.id}`)?.click()}
@@ -850,10 +874,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                                     setEditStockL(prod.stock['L'] || 0);
                                     setEditStockXL(prod.stock['XL'] || 0);
                                     setEditStockXXL(prod.stock['XXL'] || 0);
+                                    setEditWhatsappLink(prod.whatsappLink || '');
                                   }}
                                   className="text-[10px] font-mono px-2 py-1 border border-stone-250 text-stone-600 hover:text-black rounded"
                                 >
-                                  {editingProductId === prod.id ? 'Close' : 'Adjust Stock'}
+                                  {editingProductId === prod.id ? 'Close' : 'Edit Product'}
                                 </button>
                                 <button
                                   onClick={() => {
@@ -868,45 +893,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                                 </button>
                               </td>
                             </tr>
-
                             {/* EXPANSED STOCK ADJUSTMENT ROW */}
                             {editingProductId === prod.id && (
                               <tr className="bg-stone-50/70 font-mono text-[11px]">
                                 <td colSpan={6} className="p-4">
-                                  <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4 max-w-xl">
-                                    <span className="font-bold uppercase tracking-wider text-stone-400 text-[10px]">Overriding Stock values for {prod.name}:</span>
-                                    <div className="flex gap-2 text-center">
-                                      {['S', 'M', 'L', 'XL', 'XXL'].map(sz => {
-                                        const originalV = prod.stock[sz] || 0;
-                                        const gets = { 'S': editStockS, 'M': editStockM, 'L': editStockL, 'XL': editStockXL, 'XXL': editStockXXL }[sz as ('S'|'M'|'L'|'XL'|'XXL')];
-                                        const sets = {
-                                          'S': setEditStockS,
-                                          'M': setEditStockM,
-                                          'L': setEditStockL,
-                                          'XL': setEditStockXL,
-                                          'XXL': setEditStockXXL
-                                        }[sz as ('S'|'M'|'L'|'XL'|'XXL')];
+                                  <div className="space-y-4 max-w-2xl">
+                                    <div className="flex flex-col md:flex-row md:items-baseline justify-between gap-4">
+                                      <span className="font-bold uppercase tracking-wider text-stone-400 text-[10px]">Overriding Stock values for {prod.name}:</span>
+                                      <div className="flex gap-2 text-center">
+                                        {['S', 'M', 'L', 'XL', 'XXL'].map(sz => {
+                                          const originalV = prod.stock[sz] || 0;
+                                          const gets = { 'S': editStockS, 'M': editStockM, 'L': editStockL, 'XL': editStockXL, 'XXL': editStockXXL }[sz as ('S'|'M'|'L'|'XL'|'XXL')];
+                                          const sets = {
+                                            'S': setEditStockS,
+                                            'M': setEditStockM,
+                                            'L': setEditStockL,
+                                            'XL': setEditStockXL,
+                                            'XXL': setEditStockXXL
+                                          }[sz as ('S'|'M'|'L'|'XL'|'XXL')];
 
-                                        return (
-                                          <div key={sz} className="w-14">
-                                            <span className="block text-[10px] font-bold text-stone-500">{sz} (Orig: {originalV})</span>
-                                            <input 
-                                              type="number" 
-                                              min="0"
-                                              value={gets}
-                                              onChange={(e) => sets(Math.max(0, parseInt(e.target.value) || 0))}
-                                              className="bg-white border rounded text-center py-1 w-full mt-1 font-bold text-black"
-                                            />
-                                          </div>
-                                        );
-                                      })}
+                                          return (
+                                            <div key={sz} className="w-14">
+                                              <span className="block text-[10px] font-bold text-stone-500">{sz} (Orig: {originalV})</span>
+                                              <input 
+                                                type="number" 
+                                                min="0"
+                                                value={gets}
+                                                onChange={(e) => sets(Math.max(0, parseInt(e.target.value) || 0))}
+                                                className="bg-white border rounded text-center py-1 w-full mt-1 font-bold text-black"
+                                              />
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
-                                    <button
-                                      onClick={() => handleOverrideStock(prod.id)}
-                                      className="py-1 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs shrink-0 self-end md:self-auto font-sans font-semibold uppercase tracking-wider"
-                                    >
-                                      Save Quantities
-                                    </button>
+                                    
+                                    <div className="flex flex-col gap-1.5 border-t border-stone-200/60 pt-3">
+                                      <label className="block text-[10px] font-bold text-stone-500 uppercase">WhatsApp Catalogue Product URL</label>
+                                      <div className="flex gap-2">
+                                        <input 
+                                          type="text" 
+                                          value={editWhatsappLink}
+                                          onChange={(e) => setEditWhatsappLink(e.target.value)}
+                                          className="bg-white border rounded px-2 py-1.5 w-full text-xs font-mono text-black font-semibold"
+                                          placeholder="E.g., https://wa.me/p/... or custom link"
+                                        />
+                                        <button
+                                          onClick={() => handleOverrideProductDetails(prod.id)}
+                                          className="py-1.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-sans font-semibold uppercase tracking-wider shrink-0"
+                                        >
+                                          Save Changes
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
                                 </td>
                               </tr>
@@ -921,63 +960,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
               </div>
             )}
 
-            {/* VIEW 3: IN DEPTH CUSTOMERS & INVOICE ORDERS GENERAL PANEL */}
+            {/* VIEW 3: INVOICE ORDERS & FULFILLMENT PANEL */}
             {adminTab === 'orders' && (
               <div className="space-y-8">
-                
-                {/* A. CUSTOMER ACCOUNTS LIST */}
-                <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-                  <div className="p-5 border-b border-stone-100">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900 font-mono">
-                      Loyal Label Swati Members ledger
-                    </h3>
-                  </div>
-
-                  <div className="overflow-x-auto text-xs font-sans text-left">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-stone-50 text-stone-400 font-mono uppercase tracking-widest text-[9px] border-b border-stone-150">
-                          <th className="py-2.5 px-4 font-normal">Customer Account details</th>
-                          <th className="py-2.5 px-4 font-normal">Contact No</th>
-                          <th className="py-2.5 px-4 font-normal">Home Shipping Residence</th>
-                          <th className="py-2.5 px-4 font-normal">Referral Code</th>
-                          <th className="py-2.5 px-4 font-normal">Referrals Count</th>
-                          <th className="py-2.5 px-4 font-normal text-right">LS Coins Balance</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {users.map(u => (
-                          <tr key={u.id} className="hover:bg-stone-50/35">
-                            <td className="py-3.5 px-4 font-bold text-stone-900">
-                              <p>{u.name}</p>
-                              <p className="text-[10px] text-stone-400 font-mono font-normal">ID: {u.id}</p>
-                            </td>
-
-                            <td className="py-3.5 px-4 font-mono text-stone-600">
-                              {u.contactNumber}
-                            </td>
-
-                            <td className="py-3.5 px-4 text-stone-500 max-w-xs truncate" title={u.address}>
-                              {u.address}
-                            </td>
-
-                            <td className="py-3.5 px-4 font-mono text-black font-semibold">
-                              {u.referralCode}
-                            </td>
-
-                            <td className="py-3.5 px-4 font-mono text-stone-700">
-                              {u.referralsCount} joins
-                            </td>
-
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-stone-900">
-                              ₹{u.slCoins}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
 
                 {/* B. ACTIVE SALES ORDERS & FULFILLMENT PANEL */}
                 <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">

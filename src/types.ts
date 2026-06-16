@@ -17,6 +17,7 @@ export interface Product {
   creationDate: string; // ISO string to check dead inventory
   isNewArrival?: boolean;
   isUpcoming?: boolean;
+  whatsappLink?: string;
 }
 
 export interface OrderItem {
@@ -46,16 +47,6 @@ export interface Order {
   date: string;
 }
 
-export interface UserAccount {
-  id: string; // unique user id
-  name: string;
-  contactNumber: string;
-  address: string;
-  referralCode: string;
-  slCoins: number;
-  referralsCount: number;
-  referredBy?: string;
-}
 
 export interface Coupon {
   code: string;

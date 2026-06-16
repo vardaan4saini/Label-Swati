@@ -10,11 +10,9 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AdminLogin } from './components/AdminLogin';
 
 export default function App() {
-  // Check if the current URL path is /admiin
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
   const [adminAuthenticated, setAdminAuthenticated] = useState<boolean>(false);
 
-  // Listen for popstate (browser back/forward) and also manual path changes
   useEffect(() => {
     const handlePopState = () => {
       setCurrentPath(window.location.pathname);
@@ -23,7 +21,7 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  const isAdminRoute = currentPath === '/admiin';
+  const isAdminRoute = currentPath === '/admiin' || currentPath === '/admiin/';
 
   const handleNavigateToCustomer = () => {
     setAdminAuthenticated(false);
@@ -49,3 +47,4 @@ export default function App() {
     </StoreProvider>
   );
 }
+
