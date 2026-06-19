@@ -6,14 +6,14 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
-import { 
+import {
   Sparkles, Bell, Eye, ChevronLeft, ChevronRight, MessageCircle,
   ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // WhatsApp brand number — default for fallback chat messages
-const WHATSAPP_NUMBER = '13057641782';
+const WHATSAPP_NUMBER = '8368273725';
 
 /**
  * Generates a WhatsApp redirect URL with a pre-filled message about the product.
@@ -87,7 +87,7 @@ export const CustomerHome: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 pb-16 relative">
-      
+
       {/* 1. Notification Toast Alert */}
       <AnimatePresence>
         {toastAlert && (
@@ -105,7 +105,7 @@ export const CustomerHome: React.FC = () => {
                   <p className="text-xs text-stone-300 mt-1 font-sans leading-relaxed">{toastAlert.message}</p>
                 </div>
               </div>
-              <button 
+              <button
                 onClick={() => setToastAlert(null)}
                 className="text-stone-400 hover:text-white text-xs font-mono px-1 bg-stone-900 rounded"
               >
@@ -113,8 +113,8 @@ export const CustomerHome: React.FC = () => {
               </button>
             </div>
             <div className="mt-3 flex justify-end">
-              <button 
-                onClick={() => setToastAlert(null)} 
+              <button
+                onClick={() => setToastAlert(null)}
                 className="text-[10px] uppercase tracking-widest text-white hover:underline bg-stone-800 px-2 py-1 rounded"
               >
                 Dismiss
@@ -127,13 +127,13 @@ export const CustomerHome: React.FC = () => {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-stone-100 sticky top-0 z-30 font-sans">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 flex items-center justify-between">
-          
+
           {/* Logo and Brand Title */}
-          <button 
+          <button
             onClick={() => {
               setSelectedProductDetails(null);
               setSelectedCategory('All');
-            }} 
+            }}
             className="flex items-center gap-3 hover:opacity-90 transition-opacity cursor-pointer text-left focus:outline-hidden"
           >
             <img src="/logo.jpg" alt="Label Swati Logo" className="h-10 md:h-12 w-auto shrink-0 object-contain rounded-md" />
@@ -144,7 +144,7 @@ export const CustomerHome: React.FC = () => {
           </button>
 
           {/* WhatsApp Contact CTA */}
-          <a 
+          <a
             href="https://wa.me/c/130576417824793"
             target="_blank"
             rel="noreferrer"
@@ -168,28 +168,28 @@ export const CustomerHome: React.FC = () => {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
         <div className="space-y-12">
-          
+
           {/* Seasonal Lookbook Spotlight */}
           {activeLookbookObj && (
             <div className="relative rounded-xl overflow-hidden bg-stone-900 text-white min-h-[380px] md:min-h-[460px] flex flex-col justify-end p-6 md:p-12 shadow-sm">
               <div className="absolute inset-0 bg-gradient-to-t from-stone-950 via-stone-900/50 to-transparent z-10" />
-              <img 
-                src={activeLookbookObj.image} 
-                alt={activeLookbookObj.title} 
+              <img
+                src={activeLookbookObj.image}
+                alt={activeLookbookObj.title}
                 className="absolute inset-0 w-full h-full object-cover opacity-75 z-0"
                 referrerPolicy="no-referrer"
               />
-              
+
               {/* Lookbook info panel */}
               <div className="relative z-15 max-w-2xl font-sans">
                 <span className="text-[10px] font-mono uppercase tracking-widest text-stone-300 bg-white/10 px-2.5 py-1 rounded-full backdrop-blur-sm">
                   Seasonal Campaign: {activeLookbookObj.season}
                 </span>
-                
+
                 <h2 className="text-2xl md:text-4xl font-serif tracking-wide mt-3 text-white leading-tight">
                   {activeLookbookObj.title}
                 </h2>
-                
+
                 <p className="text-xs md:text-sm text-stone-300 mt-2 font-serif italic max-w-xl leading-relaxed">
                   "{activeLookbookObj.description}"
                 </p>
@@ -218,9 +218,8 @@ export const CustomerHome: React.FC = () => {
                   <button
                     key={lb.id}
                     onClick={() => setActiveLookbookId(lb.id)}
-                    className={`px-3 py-1 text-[10px] font-mono border rounded ${
-                      activeLookbookId === lb.id ? 'bg-white text-black' : 'text-stone-300 border-white/20 hover:bg-white/10'
-                    }`}
+                    className={`px-3 py-1 text-[10px] font-mono border rounded ${activeLookbookId === lb.id ? 'bg-white text-black' : 'text-stone-300 border-white/20 hover:bg-white/10'
+                      }`}
                   >
                     {lb.season}
                   </button>
@@ -231,10 +230,10 @@ export const CustomerHome: React.FC = () => {
 
           {/* Split layout: Categories sidebar + Catalogue Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-            
+
             {/* LEFT SIDEBAR: Filters */}
             <div className="lg:col-span-1 space-y-6">
-              
+
               {/* Brand Profile */}
               <div className="bg-white p-5 rounded-xl border border-stone-150 space-y-4 font-sans shadow-xs">
                 <div className="flex items-center gap-3">
@@ -249,7 +248,7 @@ export const CustomerHome: React.FC = () => {
                 </div>
 
                 {/* WhatsApp CTA in sidebar */}
-                <a 
+                <a
                   href="https://wa.me/c/130576417824793"
                   target="_blank"
                   rel="noreferrer"
@@ -265,7 +264,7 @@ export const CustomerHome: React.FC = () => {
                 <span className="block text-[11px] uppercase tracking-wider text-stone-400 font-mono font-bold pb-1 border-b border-stone-100">
                   Collections & Categories
                 </span>
-                
+
                 <div className="flex flex-col gap-1.5">
                   {allCategories.map(cat => {
                     const count = products.filter(p => !p.isUpcoming && (cat === 'All' || p.category === cat)).length;
@@ -273,16 +272,14 @@ export const CustomerHome: React.FC = () => {
                       <button
                         key={cat}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`text-xs px-3.5 py-2.5 rounded-lg flex items-center justify-between transition-all cursor-pointer ${
-                          selectedCategory === cat 
-                            ? 'bg-gradient-to-r from-[#C2410C] via-[#9333EA] to-[#4C1D95] text-white font-semibold' 
-                            : 'bg-stone-50 hover:bg-stone-100/80 text-stone-600'
-                        }`}
+                        className={`text-xs px-3.5 py-2.5 rounded-lg flex items-center justify-between transition-all cursor-pointer ${selectedCategory === cat
+                          ? 'bg-gradient-to-r from-[#C2410C] via-[#9333EA] to-[#4C1D95] text-white font-semibold'
+                          : 'bg-stone-50 hover:bg-stone-100/80 text-stone-600'
+                          }`}
                       >
                         <span>{cat}</span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                          selectedCategory === cat ? 'bg-white/20 text-white' : 'bg-stone-200/60 text-stone-500'
-                        }`}>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedCategory === cat ? 'bg-white/20 text-white' : 'bg-stone-200/60 text-stone-500'
+                          }`}>
                           {count}
                         </span>
                       </button>
@@ -296,17 +293,16 @@ export const CustomerHome: React.FC = () => {
                 <span className="block text-[11px] uppercase tracking-wider text-stone-400 font-mono font-bold pb-1 border-b border-stone-100">
                   Size Fit Selection
                 </span>
-                
+
                 <div className="grid grid-cols-3 gap-2">
                   {['All', 'XS', 'S', 'M', 'L', 'XL'].map(sz => (
                     <button
                       key={sz}
                       onClick={() => setSelectedSizeFilter(sz)}
-                      className={`text-xs py-2 rounded-lg border text-center transition-all cursor-pointer font-mono font-medium ${
-                        selectedSizeFilter === sz 
-                          ? 'border-[#9333EA] bg-[#9333EA] text-white shadow-xs font-bold' 
-                          : 'border-stone-200 text-stone-500 hover:border-[#C2410C]'
-                      }`}
+                      className={`text-xs py-2 rounded-lg border text-center transition-all cursor-pointer font-mono font-medium ${selectedSizeFilter === sz
+                        ? 'border-[#9333EA] bg-[#9333EA] text-white shadow-xs font-bold'
+                        : 'border-stone-200 text-stone-500 hover:border-[#C2410C]'
+                        }`}
                     >
                       {sz}
                     </button>
@@ -319,16 +315,16 @@ export const CustomerHome: React.FC = () => {
                 <span className="block text-[11px] uppercase tracking-wider text-stone-400 font-mono font-bold pb-1 border-b border-stone-100">
                   Budget Boundary
                 </span>
-                
+
                 <div>
                   <div className="flex justify-between text-xs text-stone-500 font-mono mb-2">
                     <span>Maximum:</span>
                     <span className="font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded">₹{maxPrice}</span>
                   </div>
-                  <input 
-                    type="range" 
-                    min="1500" 
-                    max="15000" 
+                  <input
+                    type="range"
+                    min="1500"
+                    max="15000"
                     step="500"
                     value={maxPrice}
                     onChange={(e) => setMaxPrice(parseInt(e.target.value))}
@@ -345,7 +341,7 @@ export const CustomerHome: React.FC = () => {
 
             {/* RIGHT CONTENT: PRODUCT CATALOGUE GRID */}
             <div className="lg:col-span-3 space-y-6">
-              
+
               {/* Catalogue header */}
               <div className="flex justify-between items-baseline mb-6 font-sans border-b border-stone-100 pb-3">
                 <h3 className="text-lg font-bold tracking-tight text-neutral-900 border-l-2 border-stone-950 pl-3">
@@ -366,13 +362,13 @@ export const CustomerHome: React.FC = () => {
                     return (
                       <div key={prod.id} className="group relative flex flex-col">
                         <div className="relative aspect-3/4 w-full bg-stone-100 rounded-lg overflow-hidden border border-stone-100 shadow-xs">
-                          <img 
-                            src={prod.images[0]} 
-                            alt={prod.name} 
+                          <img
+                            src={prod.images[0]}
+                            alt={prod.name}
                             className="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                             referrerPolicy="no-referrer"
                           />
-                          
+
                           {/* Badges */}
                           {prod.isNewArrival && (
                             <span className="absolute top-2 left-2 bg-amber-500/90 text-white text-[9px] font-mono tracking-wider px-2 py-0.5 rounded">
@@ -428,11 +424,10 @@ export const CustomerHome: React.FC = () => {
                           href={getWhatsAppLink(prod)}
                           target="_blank"
                           rel="noreferrer"
-                          className={`mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all shadow-sm active:scale-95 ${
-                            totalInventoryLeft === 0
-                              ? 'bg-stone-200 text-stone-400 pointer-events-none cursor-not-allowed'
-                              : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md'
-                          }`}
+                          className={`mt-3 w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-semibold uppercase tracking-wider transition-all shadow-sm active:scale-95 ${totalInventoryLeft === 0
+                            ? 'bg-stone-200 text-stone-400 pointer-events-none cursor-not-allowed'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md'
+                            }`}
                         >
                           <MessageCircle className="w-4 h-4" />
                           {totalInventoryLeft === 0 ? 'Out of Stock' : 'Buy on WhatsApp'}
@@ -455,13 +450,13 @@ export const CustomerHome: React.FC = () => {
       <AnimatePresence>
         {selectedProductDetails && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto relative p-6 md:p-8 font-sans"
             >
-              <button 
+              <button
                 onClick={() => setSelectedProductDetails(null)}
                 className="absolute top-4 right-4 text-stone-400 hover:text-black font-semibold text-lg p-1.5 hover:bg-stone-50 rounded"
                 title="Close"
@@ -470,7 +465,7 @@ export const CustomerHome: React.FC = () => {
               </button>
 
               <div className="flex justify-between items-center border-b border-stone-150 pb-3 mb-5 mt-2">
-                <button 
+                <button
                   onClick={() => setSelectedProductDetails(null)}
                   className="inline-flex items-center gap-1.5 text-xs text-stone-500 hover:text-black font-semibold uppercase tracking-wider cursor-pointer group"
                   title="Return to Catalogue"
@@ -483,7 +478,7 @@ export const CustomerHome: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                
+
                 {/* Images gallery slide */}
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
@@ -492,16 +487,16 @@ export const CustomerHome: React.FC = () => {
                       Slide {activeSlideIndex + 1} of {selectedProductDetails.images.length}
                     </span>
                   </div>
-                  
+
                   {/* Aspect Box with controls */}
                   <div className="relative aspect-3/4 rounded overflow-hidden bg-stone-50 border border-stone-200 group/slide shadow-xs">
-                    <img 
-                      src={selectedProductDetails.images[activeSlideIndex] || selectedProductDetails.images[0]} 
-                      alt={`${selectedProductDetails.name} angle representation`} 
+                    <img
+                      src={selectedProductDetails.images[activeSlideIndex] || selectedProductDetails.images[0]}
+                      alt={`${selectedProductDetails.name} angle representation`}
                       className="w-full h-full object-cover transition-all duration-300"
                       referrerPolicy="no-referrer"
                     />
-                    
+
                     {/* Navigation Chevrons */}
                     {selectedProductDetails.images.length > 1 && (
                       <>
@@ -513,7 +508,7 @@ export const CustomerHome: React.FC = () => {
                         >
                           <ChevronLeft className="w-5 h-5" />
                         </button>
-                        
+
                         <button
                           onClick={() => {
                             setActiveSlideIndex(prev => (prev === selectedProductDetails.images.length - 1 ? 0 : prev + 1));
@@ -531,9 +526,8 @@ export const CustomerHome: React.FC = () => {
                         <button
                           key={idx}
                           onClick={() => setActiveSlideIndex(idx)}
-                          className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${
-                            idx === activeSlideIndex ? 'bg-black w-3' : 'bg-white/60'
-                          }`}
+                          className={`w-1.5 h-1.5 rounded-full transition-all cursor-pointer ${idx === activeSlideIndex ? 'bg-black w-3' : 'bg-white/60'
+                            }`}
                         />
                       ))}
                     </div>
@@ -545,13 +539,12 @@ export const CustomerHome: React.FC = () => {
                       <button
                         key={idx}
                         onClick={() => setActiveSlideIndex(idx)}
-                        className={`relative w-11 h-14 shrink-0 rounded overflow-hidden border-2 bg-stone-50 transition-all cursor-pointer ${
-                          idx === activeSlideIndex ? 'border-black ring-1 ring-black/10 scale-102' : 'border-stone-200 hover:border-stone-400'
-                        }`}
+                        className={`relative w-11 h-14 shrink-0 rounded overflow-hidden border-2 bg-stone-50 transition-all cursor-pointer ${idx === activeSlideIndex ? 'border-black ring-1 ring-black/10 scale-102' : 'border-stone-200 hover:border-stone-400'
+                          }`}
                       >
-                        <img 
-                          src={img} 
-                          alt={`Angle thumb ${idx + 1}`} 
+                        <img
+                          src={img}
+                          alt={`Angle thumb ${idx + 1}`}
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
                         />
