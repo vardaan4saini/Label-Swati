@@ -6,8 +6,8 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Product } from '../types';
-import { 
-  Package, AlertTriangle, 
+import {
+  Package, AlertTriangle,
   Trash2, Plus, ArrowLeft,
   Camera
 } from 'lucide-react';
@@ -41,8 +41,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
     setCameraError(null);
     setShowCamera(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment', width: 640, height: 480 } 
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: 640, height: 480 }
       });
       setCameraStream(stream);
       setTimeout(() => {
@@ -73,7 +73,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
         canvas.width = video.videoWidth || 640;
         canvas.height = video.videoHeight || 480;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
+
         // Convert canvas image to data URL
         const dataUrl = canvas.toDataURL('image/jpeg');
         setNewProdImage(dataUrl);
@@ -182,7 +182,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
     setNewProdImage4('https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=800&auto=format&fit=crop&q=80');
     setNewProdImage5('https://images.unsplash.com/photo-1548624149-f9c17d4d6351?w=800&auto=format&fit=crop&q=80');
     setNewProdWhatsappLink('');
-    
+
     triggerSaleNotification(
       'New Collection Arrival!',
       `Brand new Label Swati style: [${newProdName}] has been catalogued. Available dimensions added to active inventory filters!`,
@@ -210,7 +210,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
 
   return (
     <div className="bg-stone-50 min-h-screen text-stone-900 pb-16 font-sans">
-      
+
       {/* Admin header */}
       <header className="bg-gradient-to-r from-[#C2410C] via-[#9333EA] to-[#4C1D95] text-white py-5 sticky top-0 z-20 shadow-md">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between">
@@ -224,7 +224,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
               <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" /> BACK TO STORE
             </button>
             <div className="h-6 w-px bg-white/25 hidden md:block" />
-              <img src="/logo.jpg" alt="Label Swati Logo" className="h-8 md:h-10 w-auto shrink-0 object-contain rounded-md opacity-95" />
+            <img src="/logo.jpg" alt="Label Swati Logo" className="h-8 md:h-10 w-auto shrink-0 object-contain rounded-md opacity-95" />
             <div>
               <span className="text-[10px] tracking-widest text-[#FED7AA] font-mono uppercase font-bold block">Internal Warehousing Engine</span>
               <h1 className="text-sm font-bold tracking-tight uppercase font-mono">Label Swati Custom Admin Node</h1>
@@ -243,21 +243,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
       </header>
 
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-8">
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          
+
           {/* LEFT RAILS: SUB-TAB SWITCHING & DIAGNOSTIC ALARMS CARD */}
           <div className="lg:col-span-3 space-y-6">
-            
+
             {/* Sidebar navigation tabs */}
             <div className="bg-white rounded-lg border border-stone-150 p-4 space-y-1 block">
               <span className="block text-[9px] text-stone-400 uppercase tracking-wider font-semibold font-mono pb-2 px-2.5">Control Center</span>
-              
+
               <button
                 onClick={() => setAdminTab('inventory')}
-                className={`w-full py-2 px-3 rounded text-left text-xs font-medium flex items-center gap-2.5 transition-all outline-hidden ${
-                  adminTab === 'inventory' ? 'bg-[#4C1D95] text-white font-semibold shadow-xs' : 'text-stone-600 hover:bg-stone-100'
-                }`}
+                className={`w-full py-2 px-3 rounded text-left text-xs font-medium flex items-center gap-2.5 transition-all outline-hidden ${adminTab === 'inventory' ? 'bg-[#4C1D95] text-white font-semibold shadow-xs' : 'text-stone-600 hover:bg-stone-100'
+                  }`}
               >
                 <Package className="w-4 h-4" /> Product & Warehouse
               </button>
@@ -277,7 +276,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                 <span className="block text-[10px] uppercase font-semibold text-stone-500 tracking-wider">
                   ⚠️ Stock Exhaustion Alarms ({exhaustionAlarms.length})
                 </span>
-                
+
                 {exhaustionAlarms.length === 0 ? (
                   <p className="text-[10px] text-stone-400 font-serif italic mt-1 pl-1">Aggregate warehouse stock levels nominal.</p>
                 ) : (
@@ -320,11 +319,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
 
           {/* RIGHT SCREEN MAIN DESKTOP PANEL */}
           <div className="lg:col-span-9 space-y-8">
-            
+
             {/* VIEW 2: DETAILED INVENTORY & GARMENT MULTIPLEXER */}
             {adminTab === 'inventory' && (
               <div className="space-y-8">
-                
+
                 {/* 1. Add new products section */}
                 <div className="bg-white rounded-lg border border-stone-200 p-6">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900 border-b border-stone-100 pb-2 mb-4">
@@ -335,8 +334,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="block text-xs font-semibold text-stone-700">Garment Name</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           required
                           value={newProdName}
                           onChange={(e) => setNewProdName(e.target.value)}
@@ -352,7 +351,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                           onChange={(e) => setNewProdCategory(e.target.value)}
                           className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white"
                         >
-                          {['Dresses', 'Coats', 'Knitwear', 'Trousers', 'Tees'].map(cat => (
+                          {['Dresses', 'Coats', 'Knitwear', 'Trousers', 'Tees', 'Skirts', 'Shorts', 'Top'].map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
                         </select>
@@ -362,8 +361,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="block text-xs font-semibold text-stone-700">Base Retail Price (₹ INR)</label>
-                        <input 
-                          type="number" 
+                        <input
+                          type="number"
                           required
                           value={newProdPrice}
                           onChange={(e) => setNewProdPrice(Math.max(1, parseInt(e.target.value) || 0))}
@@ -371,11 +370,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                           placeholder="₹ Price size"
                         />
                       </div>
-                      
+
                       <div className="space-y-1">
                         <label className="block text-xs font-semibold text-stone-700">WhatsApp Product Link (Optional)</label>
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           value={newProdWhatsappLink}
                           onChange={(e) => setNewProdWhatsappLink(e.target.value)}
                           className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white font-mono"
@@ -395,7 +394,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                           >
                             📁 Base Angle Upload
                           </button>
-                          <input 
+                          <input
                             id="gallery-file-upload"
                             type="file"
                             accept="image/*"
@@ -443,8 +442,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                               </div>
                             </div>
                             <div className="flex flex-col gap-1">
-                              <input 
-                                type="text" 
+                              <input
+                                type="text"
                                 required
                                 value={imgEntry.get}
                                 onChange={(e) => imgEntry.set(e.target.value)}
@@ -458,7 +457,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                               >
                                 Upload Image
                               </button>
-                              <input 
+                              <input
                                 id={`gallery-file-upload-${idx}`}
                                 type="file"
                                 accept="image/*"
@@ -489,9 +488,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                             <span className="w-2 h-2 bg-rose-600 rounded-full animate-ping" />
                             <span>LIVE WARDROBE CAMERA VIEWFINDER</span>
                           </div>
-                          <button 
-                            type="button" 
-                            onClick={stopCamera} 
+                          <button
+                            type="button"
+                            onClick={stopCamera}
                             className="text-[10px] text-stone-400 hover:text-white bg-stone-800 px-2 py-1 rounded"
                           >
                             Cancel
@@ -504,11 +503,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                           </div>
                         ) : (
                           <div className="relative aspect-video max-w-sm mx-auto bg-black rounded overflow-hidden border border-stone-800 shadow-inner">
-                            <video 
-                              ref={videoRef} 
-                              autoPlay 
-                              playsInline 
-                              className="w-full h-full object-cover" 
+                            <video
+                              ref={videoRef}
+                              autoPlay
+                              playsInline
+                              className="w-full h-full object-cover"
                             />
                             <div className="absolute inset-0 border border-white/10 pointer-events-none" />
                           </div>
@@ -524,14 +523,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                             <Camera className="w-4 h-4" /> Snap Wardrobe Photograph
                           </button>
                         </div>
-                        
+
                         <canvas ref={canvasRef} className="hidden" />
                       </div>
                     )}
 
                     <div className="space-y-1">
                       <label className="block text-xs font-semibold text-stone-700">Artistic Campaign Description</label>
-                      <textarea 
+                      <textarea
                         required
                         rows={2}
                         value={newProdDescription}
@@ -554,8 +553,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                         ].map(st => (
                           <div key={st.size} className="space-y-0.5 text-center">
                             <span className="block font-semibold text-stone-600">{st.size}</span>
-                            <input 
-                              type="number" 
+                            <input
+                              type="number"
                               min="0"
                               value={st.get}
                               onChange={(e) => st.set(Math.max(0, parseInt(e.target.value) || 0))}
@@ -595,13 +594,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100">
-                       {products.map(prod => (
+                        {products.map(prod => (
                           <React.Fragment key={prod.id}>
                             <tr className="hover:bg-stone-50/40">
                               <td className="py-3 px-4 flex items-center gap-3">
-                                <img 
-                                  src={prod.images[0]} 
-                                  alt={prod.name} 
+                                <img
+                                  src={prod.images[0]}
+                                  alt={prod.name}
                                   className="w-9 h-11 object-cover rounded bg-stone-100 border"
                                   referrerPolicy="no-referrer"
                                 />
@@ -687,7 +686,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                                 </button>
                                 <button
                                   onClick={() => {
-                                    if(confirm(`Are you sure you want to permanently delete ${prod.name}?`)) {
+                                    if (confirm(`Are you sure you want to permanently delete ${prod.name}?`)) {
                                       deleteProduct(prod.id);
                                     }
                                   }}
@@ -708,20 +707,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                                       <div className="flex gap-2 text-center">
                                         {['S', 'M', 'L', 'XL', 'XXL'].map(sz => {
                                           const originalV = prod.stock[sz] || 0;
-                                          const gets = { 'S': editStockS, 'M': editStockM, 'L': editStockL, 'XL': editStockXL, 'XXL': editStockXXL }[sz as ('S'|'M'|'L'|'XL'|'XXL')];
+                                          const gets = { 'S': editStockS, 'M': editStockM, 'L': editStockL, 'XL': editStockXL, 'XXL': editStockXXL }[sz as ('S' | 'M' | 'L' | 'XL' | 'XXL')];
                                           const sets = {
                                             'S': setEditStockS,
                                             'M': setEditStockM,
                                             'L': setEditStockL,
                                             'XL': setEditStockXL,
                                             'XXL': setEditStockXXL
-                                          }[sz as ('S'|'M'|'L'|'XL'|'XXL')];
+                                          }[sz as ('S' | 'M' | 'L' | 'XL' | 'XXL')];
 
                                           return (
                                             <div key={sz} className="w-14">
                                               <span className="block text-[10px] font-bold text-stone-500">{sz} (Orig: {originalV})</span>
-                                              <input 
-                                                type="number" 
+                                              <input
+                                                type="number"
                                                 min="0"
                                                 value={gets}
                                                 onChange={(e) => sets(Math.max(0, parseInt(e.target.value) || 0))}
@@ -732,12 +731,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                                         })}
                                       </div>
                                     </div>
-                                    
+
                                     <div className="flex flex-col gap-1.5 border-t border-stone-200/60 pt-3">
                                       <label className="block text-[10px] font-bold text-stone-500 uppercase">WhatsApp Catalogue Product URL</label>
                                       <div className="flex gap-2">
-                                        <input 
-                                          type="text" 
+                                        <input
+                                          type="text"
                                           value={editWhatsappLink}
                                           onChange={(e) => setEditWhatsappLink(e.target.value)}
                                           className="bg-white border rounded px-2 py-1.5 w-full text-xs font-mono text-black font-semibold"
