@@ -13,7 +13,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 // WhatsApp brand number — default for fallback chat messages
-const WHATSAPP_NUMBER = '13057641782';
+const WHATSAPP_NUMBER = '8368273725';
 
 /**
  * Generates a WhatsApp redirect URL with a pre-filled message about the product.
