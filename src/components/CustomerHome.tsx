@@ -19,15 +19,10 @@ const WHATSAPP_NUMBER = '918368273725';
  * Generates a WhatsApp redirect URL with a pre-filled message about the product.
  */
 const getWhatsAppLink = (product: Product) => {
-  if (product.whatsappLink) {
-    let link = product.whatsappLink.trim();
-    if (link && !/^https?:\/\//i.test(link)) {
-      link = `https://${link}`;
-    }
-    return link;
-  }
   const productUrl = `${window.location.origin}`;
   const message = `Hi! I'm interested in purchasing *${product.name}* (₹${product.price}). Here's the catalogue: ${productUrl}\n\nPlease share availability and ordering details. Thank you!`;
+  
+  // Always use the default whatsapp number, even if product has a specific link, to ensure consistency as requested
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 };
 
@@ -145,7 +140,7 @@ export const CustomerHome: React.FC = () => {
 
           {/* WhatsApp Contact CTA */}
           <a 
-            href="https://wa.me/c/130576417824793"
+            href={`https://wa.me/${WHATSAPP_NUMBER}`}
             target="_blank"
             rel="noreferrer"
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition-all shadow-sm hover:shadow-md active:scale-95"
@@ -250,7 +245,7 @@ export const CustomerHome: React.FC = () => {
 
                 {/* WhatsApp CTA in sidebar */}
                 <a 
-                  href="https://wa.me/c/130576417824793"
+                  href={`https://wa.me/${WHATSAPP_NUMBER}`}
                   target="_blank"
                   rel="noreferrer"
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold rounded-lg transition-colors shadow-sm"

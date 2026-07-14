@@ -5,14 +5,10 @@
 
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { Product, Coupon } from '../types';
+import { Product } from '../types';
 import { 
-  BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Legend
-} from 'recharts';
-import { 
-  Package, ShoppingCart, Ticket, AlertTriangle, 
-  Trash2, Plus, TrendingUp, ArrowLeft,
+  Package, AlertTriangle, 
+  Trash2, Plus, ArrowLeft,
   Camera
 } from 'lucide-react';
 import { motion } from 'motion/react';
@@ -24,20 +20,15 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCustomer }) => {
   const {
     products,
-    orders,
-    coupons,
     feedbacks,
     addProduct,
     updateProduct,
     deleteProduct,
-    addUpcomingCoupon,
-    deleteCoupon,
-    updateOrderStatus,
     triggerSaleNotification
   } = useStore();
 
-  // Active Admin Sub-Tab: 'analytics' | 'inventory' | 'orders' | 'coupons'
-  const [adminTab, setAdminTab] = useState<'analytics' | 'inventory' | 'orders' | 'coupons'>('analytics');
+  // Active Admin Sub-Tab: 'inventory'
+  const [adminTab, setAdminTab] = useState<'inventory'>('inventory');
 
   // Camera capture states
   const [showCamera, setShowCamera] = useState(false);
@@ -114,12 +105,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
   const [newProdImage5, setNewProdImage5] = useState('https://images.unsplash.com/photo-1548624149-f9c17d4d6351?w=800&auto=format&fit=crop&q=80');
   const [newProdWhatsappLink, setNewProdWhatsappLink] = useState('');
 
-  // Coupon creation states
-  const [newCpCode, setNewCpCode] = useState('');
-  const [newCpValue, setNewCpValue] = useState<number>(15);
-  const [newCpType, setNewCpType] = useState<'percent' | 'flat'>('percent');
-  const [newCpMinVal, setNewCpMinVal] = useState<number>(2000);
-  const [newCpDesc, setNewCpDesc] = useState('');
+
 
   // Editing state for inventory stock override
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
@@ -156,34 +142,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
     };
   }).filter(alarm => alarm.isTriggered);
 
-  // ANALYTICS CALCULATIONS
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalPaid, 0);
-  const totalItemsSold = orders.reduce((sum, o) => sum + o.items.reduce((ac, it) => ac + it.quantity, 0), 0);
-  const averageOrderVal = orders.length > 0 ? Math.round(totalRevenue / orders.length) : 0;
 
-  // Preparing chart data 1: Sales Revenue logs for AreaChart
-  const chronologicalSalesData = [...orders].reverse().map(ord => ({
-    date: new Date(ord.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-    revenue: ord.totalPaid,
-    subtotal: ord.subtotal
-  }));
-
-  // Preparing chart data 2: Product Popularity count for BarChart
-  const popularityData = products.slice(0, 7).map(p => ({
-    name: p.name.substring(0, 12),
-    sales: p.salesCount,
-    stock: Object.values(p.stock).reduce((a: number, b) => a + Number(b), 0) as number
-  })).sort((a,b) => b.sales - a.sales);
-
-  // Preparing chart data 3: Category proportions
-  const categorySplit = products.reduce((acc: Record<string, number>, p) => {
-    acc[p.category] = (acc[p.category] || 0) + (Object.values(p.stock).reduce((a: number, b) => a + Number(b), 0) as number);
-    return acc;
-  }, {});
-  const categoryData = Object.keys(categorySplit).map(k => ({
-    name: k,
-    stock: categorySplit[k]
-  }));
 
   // Form submit for adding product
   const handleAddProductSubmit = (e: React.FormEvent) => {
@@ -232,29 +191,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
     alert('Product successfully catalogued under collection database!');
   };
 
-  // Form submit for adding coupon codes
-  const handleAddCouponSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCpCode || !newCpDesc) return;
-    addUpcomingCoupon({
-      code: newCpCode.toUpperCase().replace(/\s/g, ''),
-      discountValue: newCpValue,
-      type: newCpType,
-      minCartValue: newCpMinVal,
-      isActive: true,
-      description: newCpDesc
-    });
-    setNewCpCode('');
-    setNewCpDesc('');
-    
-    // Notify users about upcoming reward coupon code
-    triggerSaleNotification(
-      'Loyalty Gift: New Discount Code Active!',
-      `Apply code ${newCpCode.toUpperCase()} at checkout to receive dynamic reductions! Details: ${newCpDesc}`,
-      'sale'
-    );
-    alert('New promo coupon successfully minted!');
-  };
+
 
   const handleOverrideProductDetails = (productId: string) => {
     updateProduct(productId, {
@@ -317,39 +254,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
               <span className="block text-[9px] text-stone-400 uppercase tracking-wider font-semibold font-mono pb-2 px-2.5">Control Center</span>
               
               <button
-                onClick={() => setAdminTab('analytics')}
-                className={`w-full py-2 px-3 rounded text-left text-xs font-medium flex items-center gap-2.5 transition-all outline-hidden ${
-                  adminTab === 'analytics' ? 'bg-[#4C1D95] text-white font-semibold shadow-xs' : 'text-stone-600 hover:bg-stone-100'
-                }`}
-              >
-                <TrendingUp className="w-4 h-4" /> Performance Metrics
-              </button>
-
-              <button
                 onClick={() => setAdminTab('inventory')}
                 className={`w-full py-2 px-3 rounded text-left text-xs font-medium flex items-center gap-2.5 transition-all outline-hidden ${
                   adminTab === 'inventory' ? 'bg-[#4C1D95] text-white font-semibold shadow-xs' : 'text-stone-600 hover:bg-stone-100'
                 }`}
               >
                 <Package className="w-4 h-4" /> Product & Warehouse
-              </button>
-
-              <button
-                onClick={() => setAdminTab('orders')}
-                className={`w-full py-2 px-3 rounded text-left text-xs font-medium flex items-center gap-2.5 transition-all outline-hidden ${
-                  adminTab === 'orders' ? 'bg-[#4C1D95] text-white font-semibold shadow-xs' : 'text-stone-600 hover:bg-stone-100'
-                }`}
-              >
-                <ShoppingCart className="w-4 h-4" /> Orders & Fulfillment
-              </button>
-
-              <button
-                onClick={() => setAdminTab('coupons')}
-                className={`w-full py-2 px-3 rounded text-left text-xs font-medium flex items-center gap-2.5 transition-all outline-hidden ${
-                  adminTab === 'coupons' ? 'bg-[#4C1D95] text-white font-semibold shadow-xs' : 'text-stone-600 hover:bg-stone-100'
-                }`}
-              >
-                <Ticket className="w-4 h-4" /> Coupon Generator
               </button>
             </div>
 
@@ -411,111 +321,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
           {/* RIGHT SCREEN MAIN DESKTOP PANEL */}
           <div className="lg:col-span-9 space-y-8">
             
-            {/* VIEW 1: PERFORMANCE ANALYTICS & RECHARTS */}
-            {adminTab === 'analytics' && (
-              <div className="space-y-8">
-                
-                {/* Micro metrics highlight card grids */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  
-                  <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-stone-400 font-mono">Gross Invoiced Revenue</p>
-                    <h3 className="text-xl font-bold font-mono text-stone-900 mt-1">₹{totalRevenue}</h3>
-                    <span className="text-[10px] text-stone-500 font-mono">from {orders.length} digital orders</span>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-stone-400 font-mono">Garments Sold</p>
-                    <h3 className="text-xl font-bold font-mono text-stone-900 mt-1">{totalItemsSold} pcs</h3>
-                    <span className="text-[10px] text-stone-500 font-mono">excluding custom lookbook reserves</span>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-stone-400 font-mono">Invoiced Order Avg</p>
-                    <h3 className="text-xl font-bold font-mono text-stone-900 mt-1">₹{averageOrderVal}</h3>
-                    <span className="text-[10px] text-stone-500 font-mono">highly premium spend index</span>
-                  </div>
-
-                  <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                    <p className="text-[10px] uppercase tracking-wider text-stone-400 font-mono">Total Catalogued Designs</p>
-                    <h3 className="text-xl font-bold font-mono text-stone-900 mt-1">{products.length} products</h3>
-                    <span className="text-[10px] text-emerald-600 font-semibold font-mono">Active in catalogue</span>
-                  </div>
-
-                </div>
-
-                {/* VISUAL RECHARTS CHARTS BLOCK */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
-                  {/* Revenue Growth timeline AreaChart */}
-                  <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                    <h4 className="text-xs uppercase tracking-wider text-stone-400 font-mono font-bold mb-4">
-                      cumulative Sales Revenue timeline
-                    </h4>
-                    
-                    {chronologicalSalesData.length === 0 ? (
-                      <p className="text-xs text-stone-400 font-serif italic py-10 text-center">Process order payments to generate lines.</p>
-                    ) : (
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={chronologicalSalesData} margin={{ top: 10, right: 10, left: -15, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#000000" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#000000" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                            <XAxis dataKey="date" tickStyle={{ fontSize: 9, fontFamily: 'monospace' }} />
-                            <YAxis tickStyle={{ fontSize: 9, fontFamily: 'monospace' }} />
-                            <Tooltip contentStyle={{ fontSize: 11, fontFamily: 'sans-serif' }} />
-                            <Area type="monotone" dataKey="revenue" stroke="#000000" strokeWidth={1.5} fillOpacity={1} fill="url(#colorRevenue)" name="Order Val (₹)" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Top Garments Sales BarChart */}
-                  <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                    <h4 className="text-xs uppercase tracking-wider text-stone-400 font-mono font-bold mb-4">
-                      Garment Units Popularity & Sales count
-                    </h4>
-
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={popularityData} margin={{ top: 10, right: 15, left: -15, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="name" tickStyle={{ fontSize: 8 }} />
-                          <YAxis tickStyle={{ fontSize: 9, fontFamily: 'monospace' }} />
-                          <Tooltip contentStyle={{ fontSize: 11 }} />
-                          <Bar dataKey="sales" fill="#18181b" radius={[3, 3, 0, 0]} name="Units Settled" />
-                          <Bar dataKey="stock" fill="#a8a29e" radius={[3, 3, 0, 0]} name="Active Stock" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Additional Category Stock chart layout */}
-                <div className="bg-white p-5 rounded-lg border border-stone-200 shadow-xs">
-                  <h4 className="text-xs uppercase tracking-wider text-stone-400 font-mono font-bold mb-4">
-                    Active Stock Volumes allocated by Category
-                  </h4>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                    {categoryData.map(cat => (
-                      <div key={cat.name} className="p-4 bg-stone-50 rounded border border-stone-150">
-                        <span className="block text-[10px] text-stone-400 uppercase font-mono">{cat.name}</span>
-                        <span className="text-xl font-bold font-mono text-stone-900 mt-1 block">{cat.stock} units</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-            )}
-
             {/* VIEW 2: DETAILED INVENTORY & GARMENT MULTIPLEXER */}
             {adminTab === 'inventory' && (
               <div className="space-y-8">
@@ -951,230 +756,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigateToCust
                               </tr>
                             )}
                           </React.Fragment>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* VIEW 3: INVOICE ORDERS & FULFILLMENT PANEL */}
-            {adminTab === 'orders' && (
-              <div className="space-y-8">
-
-                {/* B. ACTIVE SALES ORDERS & FULFILLMENT PANEL */}
-                <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-                  <div className="p-5 border-b border-stone-100">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900 font-mono">
-                      Invoiced orders tracking & fulfillment logs
-                    </h3>
-                  </div>
-
-                  {orders.length === 0 ? (
-                    <p className="text-xs text-stone-400 font-serif italic text-center py-10">No customer checkout orders processed yet.</p>
-                  ) : (
-                    <div className="p-4 space-y-4 text-xs font-sans text-left">
-                      {orders.map(ord => (
-                        <div key={ord.id} className="p-4 bg-stone-50 rounded border border-stone-150 space-y-3">
-                          
-                          {/* Inner header */}
-                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-stone-200 pb-2">
-                            <div>
-                              <p className="font-bold text-stone-900 font-mono">Order Tracking ID: {ord.id}</p>
-                              <p className="text-[10px] text-stone-400 font-mono">Customer Name: {ord.userName} (ID: {ord.userId}) | Contact: {ord.userContact}</p>
-                              <p className="text-[10px] text-stone-400 font-mono">Payment ID: {ord.paymentId}</p>
-                            </div>
-
-                            {/* DELIVERY CONTROLLER DROPDOWN */}
-                            <div className="flex items-center gap-1.5 pt-2 md:pt-0">
-                              <span className="text-[10px] uppercase font-mono text-stone-400">Delivery:</span>
-                              <select
-                                value={ord.deliveryStatus}
-                                onChange={(e) => {
-                                  updateOrderStatus(ord.id, e.target.value as any);
-                                  alert(`Order status adjusted to ${e.target.value} successfully.`);
-                                }}
-                                className="bg-white border border-stone-250 text-[11px] p-1 rounded font-semibold focus:outline-hidden"
-                              >
-                                <option value="Pending">Pending Setup</option>
-                                <option value="Shipped">Dispatched Shipped</option>
-                                <option value="Delivered">Delivered Done</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="bg-white p-3 rounded border border-stone-150 space-y-2">
-                            <span className="text-[10px] text-stone-400 uppercase tracking-widest font-mono font-medium block">Detailed shipping destination:</span>
-                            <p className="text-stone-700 leading-relaxed font-sans">{ord.userAddress}</p>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-stone-600">
-                            <div className="bg-stone-100 p-2.5 rounded font-mono text-[11px] space-y-1">
-                              <p className="font-bold uppercase text-[9px] text-stone-400 font-sans">Garment details packed:</p>
-                              {ord.items.map((it, idx) => (
-                                <p key={idx}>{it.quantity}x {it.productName} (Size {it.size}) @ ₹{it.priceAtPurchase}</p>
-                              ))}
-                            </div>
-
-                            <div className="font-mono text-[11px] space-y-0.5 md:text-right self-end">
-                              <p>Merchant subtotal: ₹{ord.subtotal}</p>
-                              {ord.discountCoinsApplied > 0 && <p className="text-rose-600">Coins Deducted: -₹{ord.discountCoinsApplied}</p>}
-                              {ord.discountCouponApplied > 0 && <p className="text-rose-600">Coupon Code ({ord.couponCodeUsed}): -₹{ord.discountCouponApplied}</p>}
-                              <p className="font-bold text-stone-900 text-xs border-t border-stone-200 mt-1 pt-1">Gross paid: ₹{ord.totalPaid} ({ord.paymentMethod})</p>
-                            </div>
-                          </div>
-
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            )}
-
-            {/* VIEW 4: COUPON CODE GENERATOR */}
-            {adminTab === 'coupons' && (
-              <div className="space-y-8">
-                
-                {/* 1. Generate new promotions */}
-                <div className="bg-white rounded-lg border border-stone-200 p-6">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900 border-b border-stone-100 pb-2 mb-4">
-                    Generate upcoming dynamic coupon codes
-                  </h3>
-
-                  <form onSubmit={handleAddCouponSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-stone-700">Code name (uppercase)</label>
-                        <input 
-                          type="text" 
-                          required
-                          value={newCpCode}
-                          onChange={(e) => setNewCpCode(e.target.value.toUpperCase())}
-                          className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white font-mono uppercase"
-                          placeholder="E.g. SUMMER20"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-stone-700">Discount type</label>
-                        <select
-                          value={newCpType}
-                          onChange={(e) => setNewCpType(e.target.value as any)}
-                          className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white"
-                        >
-                          <option value="percent">Percentage rate (%)</option>
-                          <option value="flat">Flat value reduction (₹)</option>
-                        </select>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-stone-700">Discount value</label>
-                        <input 
-                          type="number" 
-                          required
-                          value={newCpValue}
-                          onChange={(e) => setNewCpValue(Math.max(1, parseInt(e.target.value) || 0))}
-                          className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white font-mono"
-                          placeholder="E.g. 15"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-stone-700">Minimum Cart subtotal spend required (₹)</label>
-                        <input 
-                          type="number" 
-                          required
-                          value={newCpMinVal}
-                          onChange={(e) => setNewCpMinVal(Math.max(0, parseInt(e.target.value) || 0))}
-                          className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white font-mono"
-                          placeholder="E.g. 2000"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-xs font-semibold text-stone-700">Short display description</label>
-                        <input 
-                          type="text" 
-                          required
-                          value={newCpDesc}
-                          onChange={(e) => setNewCpDesc(e.target.value)}
-                          className="w-full text-xs p-2 bg-stone-50 border border-stone-250 rounded focus:bg-white"
-                          placeholder="E.g. Enjoy 15% discount for orders above ₹2000."
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className="w-full py-2.5 bg-black hover:bg-stone-850 text-white text-xs font-semibold uppercase tracking-widest rounded transition-colors"
-                    >
-                      Mint and announce Promo Code +
-                    </button>
-                  </form>
-                </div>
-
-                {/* 2. Coupons List ledger */}
-                <div className="bg-white rounded-lg border border-stone-200 overflow-hidden">
-                  <div className="p-5 border-b border-stone-100 flex justify-between items-baseline">
-                    <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900 font-mono">Dynamic Active Promos</h3>
-                    <span className="text-[10px] text-stone-400 font-mono">{coupons.length} coupons available</span>
-                  </div>
-
-                  <div className="overflow-x-auto text-xs font-sans text-left">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-stone-50 text-stone-400 font-mono uppercase tracking-widest text-[9px] border-b border-stone-150">
-                          <th className="py-3 px-4 font-normal">Coupon Code</th>
-                          <th className="py-3 px-4 font-normal">Discount Weight</th>
-                          <th className="py-3 px-4 font-normal">Minimum Order Spend</th>
-                          <th className="py-3 px-4 font-normal">Campaign description</th>
-                          <th className="py-3 px-4 font-normal">State</th>
-                          <th className="py-3 px-4 font-normal text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100 font-mono text-[11px]">
-                        {coupons.map(cp => (
-                          <tr key={cp.code} className="hover:bg-stone-50/40">
-                            <td className="py-3 px-4 font-bold text-black text-sm">
-                              {cp.code}
-                            </td>
-
-                            <td className="py-3 px-4 font-semibold text-emerald-800">
-                              {cp.type === 'percent' ? `${cp.discountValue}% Off` : `₹${cp.discountValue} Off`}
-                            </td>
-
-                            <td className="py-3 px-4 text-stone-600">
-                              ₹{cp.minCartValue}
-                            </td>
-
-                            <td className="py-3 px-4 font-sans text-stone-500 max-w-xs truncate" title={cp.description}>
-                              {cp.description}
-                            </td>
-
-                            <td className="py-3 px-4">
-                              <span className={`inline-block px-2 py-0.5 rounded text-[9px] ${
-                                cp.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-stone-100 text-stone-400'
-                              }`}>
-                                {cp.isActive ? 'Active Live' : 'Disabled'}
-                              </span>
-                            </td>
-
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={() => deleteCoupon(cp.code)}
-                                className="text-rose-500 hover:bg-rose-50 p-1.5 rounded transition-all"
-                                title="Delete promotion"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
                         ))}
                       </tbody>
                     </table>
